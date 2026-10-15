@@ -1,0 +1,45 @@
+{
+  "id": "AHP-RAD-014",
+  "title": "Advanced Imaging of the Lumbar Spine (fictional)",
+  "version": "3.2",
+  "effective": "2026-07-01",
+  "payer": "AHP",
+  "cpt": ["72148"],
+  "chunks": [
+    {
+      "id": "AHP-RAD-014 §3.1",
+      "text": "Diagnosis must be consistent with lumbar radiculopathy or persistent low back pain (ICD-10 M54.16, M54.5x, or equivalent)."
+    },
+    {
+      "id": "AHP-RAD-014 §3.2",
+      "text": "At least 6 weeks of documented conservative therapy is required: physical therapy, NSAIDs, and/or activity modification, unless a red-flag exception in §4 applies."
+    },
+    {
+      "id": "AHP-RAD-014 §3.3",
+      "text": "Objective neurologic deficit or persistent radicular symptoms must be documented (e.g., positive SLR, reflex change, dermatomal numbness, motor weakness)."
+    },
+    {
+      "id": "AHP-RAD-014 §3.4",
+      "text": "No lumbar MRI in the prior 12 months without documented interval clinical change."
+    },
+    {
+      "id": "AHP-RAD-014 §4",
+      "text": "Red-flag exceptions waive the 6-week conservative-therapy requirement: suspected cauda equina, malignancy, infection, or fracture."
+    },
+    {
+      "id": "AHP-RAD-014 §5",
+      "text": "Documentation should include PT discharge summary or visit notes when available to strengthen the audit trail."
+    }
+  ],
+  "guidelines": [
+    {"id": "GL-ACR-LBP v.subacute-radiculopathy", "text": "ACR Appropriateness Criteria: MRI usually appropriate for subacute radiculopathy after conservative care."},
+    {"id": "GL-ACR-LBP v.acute-uncomplicated", "text": "ACR: imaging usually not appropriate in first 6 weeks of uncomplicated low back pain without red flags."},
+    {"id": "GL-ACR-LBP v.red-flag", "text": "ACR: emergent imaging indicated for cauda equina symptoms (saddle anesthesia, urinary retention)."},
+    {"id": "GL-ACP-2017 rec 1", "text": "ACP 2017: clinicians should not routinely obtain imaging in patients with nonspecific low back pain."},
+    {"id": "GL-ACP-2017 rec 2", "text": "ACP 2017: continue conservative therapy and reassess; imaging if progressive neurologic findings."},
+    {"id": "GL-ACP-2017 rec 3", "text": "ACP 2017: imaging appropriate when patient is a candidate for intervention after failed conservative care."},
+    {"id": "GL-NASS-CES §2", "text": "NASS: suspected cauda equina requires urgent MRI and surgical evaluation."},
+    {"id": "GL-NASS-RAD", "text": "NASS: radiculopathy with objective deficit after conservative care supports advanced imaging."},
+    {"id": "REG-CMS-0057-F timeframes", "text": "CMS-0057-F: urgent prior auth decisions within 72 hours; standard within 7 calendar days (from 2026)."}
+  ]
+}

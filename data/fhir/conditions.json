@@ -1,0 +1,53 @@
+{
+  "demo-7781": [
+    {
+      "resourceType": "Condition",
+      "id": "cond-7781-1",
+      "clinicalStatus": {"coding": [{"code": "active"}]},
+      "code": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/sid/icd-10-cm",
+            "code": "M54.16",
+            "display": "Radiculopathy, lumbar region"
+          }
+        ]
+      },
+      "subject": {"reference": "Patient/demo-7781"}
+    }
+  ],
+  "demo-3310": [
+    {
+      "resourceType": "Condition",
+      "id": "cond-3310-1",
+      "clinicalStatus": {"coding": [{"code": "active"}]},
+      "code": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/sid/icd-10-cm",
+            "code": "M54.50",
+            "display": "Low back pain, unspecified"
+          }
+        ]
+      },
+      "subject": {"reference": "Patient/demo-3310"}
+    }
+  ],
+  "demo-9054": [
+    {
+      "resourceType": "Condition",
+      "id": "cond-9054-1",
+      "clinicalStatus": {"coding": [{"code": "active"}]},
+      "code": {
+        "coding": [
+          {
+            "system": "http://hl7.org/fhir/sid/icd-10-cm",
+            "code": "M54.16",
+            "display": "Radiculopathy, lumbar region"
+          }
+        ]
+      },
+      "subject": {"reference": "Patient/demo-9054"}
+    }
+  ]
+}

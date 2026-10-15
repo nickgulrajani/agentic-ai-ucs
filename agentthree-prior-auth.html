@@ -1,0 +1,1379 @@
+<title>AgentThree Prior Authorization</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky top bar + tabbed workspace; Live Run is a three-pane console (request | pipeline | inspector) that stacks on phones */
+:root{
+  --bg:#08090c; --panel:#0f1117; --panel2:#151a25; --line:#252d40; --line2:#33405c;
+  --fg:#f2f6ff; --soft:#b9cdf0; --dim:#8fa6cf;
+  --cyan:#22d3ee; --magenta:#ff4fd8; --amber:#ffb020; --lime:#a3e635; --violet:#a78bfa; --red:#ff5d73; --orange:#ff8a4c;
+  --display:"Syne","Avenir Next","Segoe UI",sans-serif;
+  --body:"DM Sans","Segoe UI",system-ui,sans-serif;
+  --mono:"DM Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));}
+a{color:var(--cyan)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.wrap{max-width:1320px;margin:0 auto}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;letter-spacing:-.01em}
+.mono{font-family:var(--mono)}
+.label{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft)}
+
+/* top bar */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:rgba(8,9,12,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+  margin-left:calc(-1*max(16px,env(safe-area-inset-left,0px)));margin-right:calc(-1*max(16px,env(safe-area-inset-right,0px)));
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.top .wrap{display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding-block:12px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--display);font-weight:800;font-size:19px}
+.brand .dots{display:flex;gap:3px}.brand .dots i{width:8px;height:8px;border-radius:50%;display:block}
+.sim{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--amber);border:1px solid var(--amber);padding:3px 8px;border-radius:4px}
+.tabs{display:flex;gap:4px;margin-left:auto;flex-wrap:wrap}
+.tabs button{background:none;border:1px solid transparent;color:var(--soft);padding:7px 12px;border-radius:6px;font-weight:600;font-size:14px}
+.tabs button[aria-selected="true"]{color:var(--fg);border-color:var(--line2);background:var(--panel2)}
+.tabs button:hover{color:var(--fg)}
+
+section.view{padding-block:28px 64px}
+.hero{display:grid;grid-template-columns:1.3fr 1fr;gap:32px;align-items:end;margin-bottom:28px}
+.hero h1{font-size:clamp(30px,4.4vw,52px);line-height:1.04;font-weight:800}
+.hero h1 em{font-style:normal;background:linear-gradient(90deg,var(--lime),var(--violet) 50%,var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero p{color:var(--soft);max-width:62ch;margin:14px 0 0}
+.banner{border:1px solid rgba(255,176,32,.45);background:rgba(255,176,32,.07);border-radius:10px;padding:14px 16px;font-size:14px;color:var(--fg)}
+.banner b{color:var(--amber)}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px;min-width:0}
+.card h3{font-size:18px;margin-bottom:8px}
+.card p{color:var(--soft);margin:0 0 10px}
+.card ul{margin:0;padding-left:18px;color:var(--soft)}
+.card li{margin:4px 0}
+.sec-head{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:40px 0 16px}
+.sec-head h2{font-size:26px}
+.sec-head .label{color:var(--cyan)}
+
+.diagram{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.diagram svg{display:block;min-width:980px;width:100%;height:auto}
+
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:12px;padding:3px 9px;border-radius:999px;border:1px solid var(--line2);color:var(--fg);background:var(--panel2);white-space:nowrap}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+
+table.stack{width:100%;border-collapse:collapse;font-size:14px}
+table.stack th,table.stack td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+table.stack th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft);font-weight:500}
+table.stack td:first-child{font-weight:600;white-space:nowrap}
+table.stack td{color:var(--soft)}
+.tablewrap{overflow-x:auto;background:var(--panel);border:1px solid var(--line);border-radius:12px}
+
+/* ---------- Live run ---------- */
+.console{display:grid;grid-template-columns:340px minmax(0,1fr);gap:16px;align-items:start}
+.pane{background:var(--panel);border:1px solid var(--line);border-radius:12px;min-width:0}
+.pane-h{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.pane-b{padding:16px}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--soft)}
+.field input,.field select,.field textarea{background:var(--bg);border:1px solid var(--line2);border-radius:7px;padding:8px 10px;font-size:14px;width:100%}
+.field textarea{min-height:170px;resize:vertical;line-height:1.5}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.presets button{background:var(--panel2);border:1px solid var(--line2);border-radius:999px;padding:5px 11px;font-size:13px;color:var(--soft)}
+.presets button.on{color:var(--bg);background:var(--cyan);border-color:var(--cyan);font-weight:600}
+.ctrl{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--line2);background:var(--panel2);border-radius:8px;padding:9px 14px;font-weight:600;font-size:14px}
+.btn.primary{background:var(--cyan);border-color:var(--cyan);color:#041318}
+.btn.primary:disabled{opacity:.45;cursor:not-allowed}
+.btn:hover:not(:disabled){filter:brightness(1.12)}
+.speed{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--soft)}
+.speed select{background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:5px}
+
+.pipeline{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:16px}
+.node{border:1px solid var(--line2);border-radius:10px;padding:12px;background:var(--panel2);position:relative;min-width:0;transition:border-color .2s,box-shadow .2s}
+.node .nm{font-family:var(--display);font-weight:700;font-size:15px;line-height:1.2}
+.node .st{font-family:var(--mono);font-size:11px;margin-top:6px;color:var(--soft)}
+.node .bar{height:3px;border-radius:2px;margin-bottom:10px}
+.node.working{box-shadow:0 0 0 1px var(--c),0 0 22px -6px var(--c);border-color:var(--c)}
+.node.working .st{color:var(--c)}
+.node.done .st{color:var(--lime)}
+.node.waiting{border-color:var(--amber);box-shadow:0 0 22px -8px var(--amber)}
+.node.waiting .st{color:var(--amber)}
+.node.halted{border-color:var(--red);box-shadow:0 0 22px -8px var(--red)}
+.node.halted .st{color:var(--red)}
+.node.skipped{opacity:.5}
+.t-err{color:var(--red)}.t-retry{color:var(--orange)}
+.fault-note{font-size:12.5px;color:var(--soft);margin:-6px 0 12px}
+details.call.err{border-color:rgba(255,93,115,.5)}
+/* eval */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0;display:flex;flex-direction:column;gap:6px}
+.kpi .v{font-family:var(--display);font-weight:800;font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+.kpi .n{font-family:var(--mono);font-size:12px;color:var(--soft)}
+.kpi .meter{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.kpi .meter i{display:block;height:100%;background:var(--cyan);border-radius:3px}
+.kpi .be{font-family:var(--mono);font-size:12px;color:var(--fg);border-top:1px solid var(--line);padding-top:8px;margin-top:2px}
+.kpi .be.none{color:var(--dim)}
+.kpi .desc{font-size:13px;color:var(--soft)}
+.cm{border-collapse:separate;border-spacing:3px;font-family:var(--mono);font-size:12px}
+.cm th{color:var(--soft);font-weight:500;padding:4px 6px;text-align:center}
+.cm th.rl{text-align:right}
+.cm td{width:62px;height:44px;text-align:center;border-radius:6px;color:var(--fg);font-variant-numeric:tabular-nums}
+.cbar{display:grid;grid-template-columns:44px 1fr 70px;gap:10px;align-items:center;margin:8px 0;font-family:var(--mono);font-size:12.5px}
+.cbar .tr{height:10px;background:var(--line);border-radius:5px;overflow:hidden}
+.cbar .tr i{display:block;height:100%;background:var(--cyan)}
+.cbar span:last-child{text-align:right;color:var(--soft);font-variant-numeric:tabular-nums}
+.res{width:100%;border-collapse:collapse;font-size:13.5px}
+.res th,.res td{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.res th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:500;white-space:nowrap}
+.res td.why{color:var(--soft);font-size:12.5px;min-width:220px}
+.ok{color:var(--lime);font-family:var(--mono);font-size:12px;white-space:nowrap}
+.no{color:var(--red);font-family:var(--mono);font-size:12px;white-space:nowrap}
+.na{color:var(--dim);font-family:var(--mono);font-size:12px}
+.tbtn{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+textarea.bein{width:100%;min-height:150px;background:var(--bg);border:1px solid var(--line2);border-radius:8px;padding:10px;font-family:var(--mono);font-size:12px;color:var(--fg)}
+.warnev{font-family:var(--mono);font-size:11px;color:var(--red);margin-top:4px}
+@media (max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:620px){.kpis{grid-template-columns:1fr 1fr}}
+@media (prefers-reduced-motion:no-preference){ .node.working .bar{animation:pulse 1s ease-in-out infinite} }
+@keyframes pulse{50%{opacity:.35}}
+
+.progress{display:flex;gap:3px;padding:0 16px 14px}
+.progress i{flex:1;height:4px;border-radius:2px;background:var(--line)}
+.progress i.on{background:var(--cyan)}
+
+.itabs{display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 10px;overflow-x:auto}
+.itabs button{background:none;border:none;border-bottom:2px solid transparent;padding:11px 12px;color:var(--soft);font-weight:600;font-size:14px;white-space:nowrap}
+.itabs button[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--cyan)}
+.itabs .n{font-family:var(--mono);font-size:11px;color:var(--cyan);margin-left:4px}
+.ibody{padding:16px;min-height:420px}
+
+.empty{color:var(--soft);font-size:14px;padding:30px 10px;text-align:center}
+.empty b{color:var(--fg)}
+
+.ev{display:grid;grid-template-columns:auto 1fr;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line)}
+.ev:last-child{border-bottom:none}
+.tag{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:4px;border:1px solid currentColor;white-space:nowrap;height:fit-content}
+.t-a2a{color:var(--magenta)}.t-mcp{color:var(--cyan)}.t-llm{color:var(--violet)}.t-guard{color:var(--lime)}.t-gate{color:var(--amber)}.t-sys{color:var(--soft)}
+.ev .ttl{font-weight:600}
+.ev .meta{font-family:var(--mono);font-size:12px;color:var(--dim)}
+pre.json{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px;font-family:var(--mono);font-size:12px;line-height:1.55;overflow:auto;max-height:340px;margin:8px 0 0;color:#d6e4ff;white-space:pre}
+.k{color:var(--cyan)}.s{color:var(--lime)}.nmb{color:var(--amber)}.b{color:var(--magenta)}
+
+details.call{border:1px solid var(--line);border-radius:9px;margin-bottom:10px;background:var(--panel2)}
+details.call summary{list-style:none;cursor:pointer;padding:10px 12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+details.call summary::-webkit-details-marker{display:none}
+details.call summary .fn{font-family:var(--mono);font-size:13px;font-weight:500}
+details.call summary .who{margin-left:auto;font-family:var(--mono);font-size:11.5px;color:var(--dim)}
+details.call .inner{padding:0 12px 12px}
+
+.wf{font-family:var(--mono);font-size:12px}
+.wf-row{display:grid;grid-template-columns:210px 1fr 64px;gap:10px;align-items:center;padding:5px 0;border-bottom:1px solid rgba(37,45,64,.6)}
+.wf-row .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--fg)}
+.wf-track{position:relative;height:14px;background:rgba(37,45,64,.45);border-radius:3px}
+.wf-bar{position:absolute;top:2px;height:10px;border-radius:2px;min-width:3px}
+.wf-row .ms{text-align:right;color:var(--soft);font-variant-numeric:tabular-nums}
+.tracehdr{display:flex;gap:18px;flex-wrap:wrap;margin-bottom:14px;font-family:var(--mono);font-size:12px;color:var(--soft)}
+.tracehdr b{color:var(--fg);font-weight:500}
+
+.ent{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;margin:10px 0}
+.entc{border:1px solid var(--line);border-radius:8px;padding:10px;background:var(--panel2)}
+.entc .label{font-size:10px}
+.entc .v{font-weight:600;margin-top:3px}
+.entc .c{font-family:var(--mono);font-size:12px;color:var(--cyan)}
+.crit{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
+.crit td,.crit th{padding:9px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.crit th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--soft);font-weight:500}
+.pill{font-family:var(--mono);font-size:11px;padding:2px 8px;border-radius:999px;font-weight:500;white-space:nowrap}
+.p-met{background:rgba(163,230,53,.14);color:var(--lime)}
+.p-not{background:rgba(255,93,115,.14);color:var(--red)}
+.p-waive{background:rgba(255,176,32,.14);color:var(--amber)}
+.gap{border-left:3px solid var(--amber);padding:8px 12px;background:rgba(255,176,32,.06);margin:6px 0;border-radius:0 6px 6px 0;font-size:14px}
+.rec{border:1px solid var(--line2);border-radius:10px;padding:14px;margin:10px 0;background:var(--panel2)}
+.rec .h{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.conf{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;color:var(--soft)}
+.conf .m{width:90px;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.conf .m i{display:block;height:100%;background:var(--amber)}
+.cite{font-family:var(--mono);font-size:11.5px;color:var(--violet)}
+
+.gatebox{border:1px solid var(--amber);border-radius:12px;padding:18px;background:rgba(255,176,32,.05)}
+.gatebox h3{font-size:19px;color:var(--amber)}
+.gatebtns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.g-ok{background:var(--lime);border-color:var(--lime);color:#0b1402}
+.g-info{background:var(--amber);border-color:var(--amber);color:#1a1100}
+.g-esc{background:var(--violet);border-color:var(--violet);color:#120a26}
+.decision{display:flex;gap:14px;align-items:center;flex-wrap:wrap;border:1px solid var(--line2);border-radius:12px;padding:16px;margin-bottom:14px;background:var(--panel2)}
+.decision .big{font-family:var(--display);font-weight:800;font-size:22px}
+
+.hash{font-family:var(--mono);font-size:11px;color:var(--dim);word-break:break-all}
+.chainok{color:var(--lime);font-family:var(--mono);font-size:13px}
+.chainbad{color:var(--red);font-family:var(--mono);font-size:13px}
+
+/* ---------- Engineering ---------- */
+.cap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.cap .top2{display:flex;align-items:center;gap:10px}
+.cap .ico{width:34px;height:34px;border-radius:8px;display:grid;place-items:center;font-family:var(--mono);font-weight:500;font-size:13px}
+.cap h3{font-size:16px}
+.cap .tech{font-family:var(--display);font-weight:700;font-size:20px;line-height:1.15}
+.cap .ev2{font-size:13px;color:var(--soft);border-top:1px solid var(--line);padding-top:10px}
+.cap .ev2 div{display:flex;gap:8px;margin:4px 0}
+.cap .ev2 div::before{content:"";flex:0 0 5px;height:5px;border-radius:50%;background:var(--c);margin-top:8px}
+
+.status{font-family:var(--mono);font-size:11.5px;padding:4px 10px;border-radius:999px;border:1px solid;background:none;white-space:nowrap}
+.s-sim{color:var(--amber);border-color:rgba(255,176,32,.5)}
+.s-prog{color:var(--violet);border-color:rgba(167,139,250,.5)}
+.s-built{color:var(--lime);border-color:rgba(163,230,53,.5)}
+.evin{background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:6px 8px;font-family:var(--mono);font-size:12px;width:100%;min-width:180px}
+
+.shots{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.shot{border:1px dashed var(--line2);border-radius:12px;overflow:hidden;background:var(--panel);display:flex;flex-direction:column}
+.shot .img{aspect-ratio:16/10;max-width:100%;display:grid;place-items:center;background:var(--panel2);color:var(--soft);font-size:13px;text-align:center;padding:12px}
+.shot .img img{width:100%;height:100%;object-fit:cover;display:block}
+.shot .cap2{padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.shot input[type=text]{background:var(--bg);border:1px solid var(--line2);border-radius:6px;padding:6px 8px;font-size:13px;width:100%}
+.shot label.up{font-family:var(--mono);font-size:12px;color:var(--cyan);cursor:pointer}
+.shot input[type=file]{display:none}
+
+footer{border-top:1px solid var(--line);padding-block:20px 40px;color:var(--soft);font-size:13px}
+
+@media (max-width:1100px){.console{grid-template-columns:1fr}.grid4{grid-template-columns:1fr 1fr}}
+@media (max-width:820px){.hero,.grid2,.grid3{grid-template-columns:1fr}.pipeline{grid-template-columns:1fr 1fr}.wf-row{grid-template-columns:120px 1fr 52px}}
+@media (max-width:520px){.grid4{grid-template-columns:1fr}.tabs{margin-left:0;width:100%}.row2{grid-template-columns:1fr}}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand"><span class="dots"><i style="background:var(--lime)"></i><i style="background:var(--violet)"></i><i style="background:var(--amber)"></i></span>AgentThree</div>
+    <span class="sim">Simulation · fictional data</span>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" data-view="overview" aria-selected="true">Overview</button>
+      <button role="tab" data-view="run" aria-selected="false">Live run</button>
+      <button role="tab" data-view="eng" aria-selected="false">Engineering</button>
+      <button role="tab" data-view="eval" aria-selected="false">Evaluation</button>
+      <button role="tab" data-view="build" aria-selected="false">Build status</button>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+<!-- ================= OVERVIEW ================= -->
+<section class="view" id="overview">
+  <div class="hero">
+    <div>
+      <div class="label" style="color:var(--cyan)">Healthcare AI · Clinical intake → prior authorization</div>
+      <h1 style="margin-top:10px">Three agents. One <em>auditable</em> prior authorization decision.</h1>
+      <p>A Clinical Intake Agent, a Prior Authorization Agent, and a Clinical Decision Support Agent coordinate over Google A2A, reach clinical systems through MCP servers, and hand a grounded, cited recommendation to a human reviewer. No consequential decision is made without a clinician.</p>
+    </div>
+    <div class="banner"><b>How to read this page.</b> The <b>Live run</b> tab is a browser simulation: agent outputs, latencies, and tool responses are generated locally from fictional data. The SHA-256 audit chain is computed for real in your browser. The <b>Build status</b> tab states which backend components exist outside this simulation.</div>
+  </div>
+
+  <div class="sec-head"><span class="label">01 · The problem</span><h2>Why prior authorization needs agents, not a chatbot</h2></div>
+  <div class="grid3">
+    <div class="card"><h3>Fragmented evidence</h3><p>The facts a reviewer needs sit across the EHR, medication lists, payer policy PDFs, and clinical guidelines. Staff assemble them by hand, and requests stall on missing documentation.</p></div>
+    <div class="card"><h3>Policy matching is criteria work</h3><p>Coverage policies are lists of conditions: diagnosis, duration of conservative therapy, exam findings, prior imaging. Each criterion must be checked against cited evidence, not summarized loosely.</p></div>
+    <div class="card"><h3>Regulatory clock</h3><p>CMS-0057-F sets prior authorization decision timeframes for impacted payers (72 hours urgent, 7 calendar days standard, from 2026) and requires FHIR-based Prior Authorization APIs from 2027. Speed has to come with traceability.</p></div>
+  </div>
+
+  <div class="sec-head"><span class="label">02 · Architecture</span><h2>Agents talk over A2A; tools are reached through MCP</h2></div>
+  <div class="diagram" role="img" aria-label="Architecture diagram: provider request flows through Intake, Prior Authorization, and Clinical Decision Support agents connected by A2A, to Human Review. All agents use an MCP layer to reach FHIR, RxNorm, payer policy, clinical knowledge, eligibility, and vector/graph stores. Every step writes to an audit ledger.">
+    <svg viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg" font-family="DM Sans, sans-serif">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ff4fd8"/></marker>
+        <marker id="arc" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#22d3ee"/></marker>
+        <marker id="arw" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#b9cdf0"/></marker>
+      </defs>
+      <!-- provider -->
+      <rect x="14" y="70" width="128" height="120" rx="10" fill="#151a25" stroke="#33405c"/>
+      <text x="78" y="112" text-anchor="middle" fill="#f2f6ff" font-family="Syne, sans-serif" font-weight="700" font-size="14">Provider</text>
+      <text x="78" y="132" text-anchor="middle" fill="#b9cdf0" font-size="11.5">EHR / portal</text>
+      <text x="78" y="150" text-anchor="middle" fill="#b9cdf0" font-size="11.5">Da Vinci PAS</text>
+      <text x="78" y="168" text-anchor="middle" fill="#b9cdf0" font-size="11.5">FHIR bundle</text>
+      <line x1="144" y1="130" x2="172" y2="130" stroke="#b9cdf0" stroke-width="1.5" marker-end="url(#arw)"/>
+      <!-- agents -->
+      <g>
+        <rect x="176" y="50" width="200" height="160" rx="12" fill="#0f1117" stroke="#a3e635" stroke-width="1.5"/>
+        <rect x="176" y="50" width="200" height="5" rx="2" fill="#a3e635"/>
+        <text x="192" y="82" fill="#a3e635" font-family="DM Mono, monospace" font-size="10.5" letter-spacing="1.2">AGENT 1 · ADK</text>
+        <text x="192" y="104" fill="#f2f6ff" font-family="Syne, sans-serif" font-weight="700" font-size="16">Clinical Intake</text>
+        <text x="192" y="128" fill="#b9cdf0" font-size="12">Extract conditions, meds, findings</text>
+        <text x="192" y="146" fill="#b9cdf0" font-size="12">Normalize to FHIR R4 / RxNorm</text>
+        <text x="192" y="164" fill="#b9cdf0" font-size="12">Detect documentation gaps</text>
+        <text x="192" y="190" fill="#8fa6cf" font-family="DM Mono, monospace" font-size="10.5">/.well-known/agent-card.json</text>
+      </g>
+      <g>
+        <rect x="446" y="50" width="200" height="160" rx="12" fill="#0f1117" stroke="#a78bfa" stroke-width="1.5"/>
+        <rect x="446" y="50" width="200" height="5" rx="2" fill="#a78bfa"/>
+        <text x="462" y="82" fill="#a78bfa" font-family="DM Mono, monospace" font-size="10.5" letter-spacing="1.2">AGENT 2 · ADK</text>
+        <text x="462" y="104" fill="#f2f6ff" font-family="Syne, sans-serif" font-weight="700" font-size="16">Prior Authorization</text>
+        <text x="462" y="128" fill="#b9cdf0" font-size="12">Check eligibility and benefits</text>
+        <text x="462" y="146" fill="#b9cdf0" font-size="12">Retrieve policy criteria (RAG)</text>
+        <text x="462" y="164" fill="#b9cdf0" font-size="12">Match criterion by criterion</text>
+        <text x="462" y="190" fill="#8fa6cf" font-family="DM Mono, monospace" font-size="10.5">/.well-known/agent-card.json</text>
+      </g>
+      <g>
+        <rect x="716" y="50" width="200" height="160" rx="12" fill="#0f1117" stroke="#ffb020" stroke-width="1.5"/>
+        <rect x="716" y="50" width="200" height="5" rx="2" fill="#ffb020"/>
+        <text x="732" y="82" fill="#ffb020" font-family="DM Mono, monospace" font-size="10.5" letter-spacing="1.2">AGENT 3 · ADK</text>
+        <text x="732" y="104" fill="#f2f6ff" font-family="Syne, sans-serif" font-weight="700" font-size="16">Clinical Decision Support</text>
+        <text x="732" y="128" fill="#b9cdf0" font-size="12">Retrieve guidelines (vector+graph)</text>
+        <text x="732" y="146" fill="#b9cdf0" font-size="12">Cited, confidence-scored findings</text>
+        <text x="732" y="164" fill="#b9cdf0" font-size="12">Grounding guardrail</text>
+        <text x="732" y="190" fill="#8fa6cf" font-family="DM Mono, monospace" font-size="10.5">/.well-known/agent-card.json</text>
+      </g>
+      <!-- A2A links -->
+      <line x1="380" y1="118" x2="442" y2="118" stroke="#ff4fd8" stroke-width="2" marker-end="url(#ar)" marker-start="url(#ar)"/>
+      <text x="411" y="106" text-anchor="middle" fill="#ff4fd8" font-family="DM Mono, monospace" font-size="11">A2A</text>
+      <text x="411" y="140" text-anchor="middle" fill="#ff4fd8" font-family="DM Mono, monospace" font-size="9.5">message/send</text>
+      <line x1="650" y1="118" x2="712" y2="118" stroke="#ff4fd8" stroke-width="2" marker-end="url(#ar)" marker-start="url(#ar)"/>
+      <text x="681" y="106" text-anchor="middle" fill="#ff4fd8" font-family="DM Mono, monospace" font-size="11">A2A</text>
+      <text x="681" y="140" text-anchor="middle" fill="#ff4fd8" font-family="DM Mono, monospace" font-size="9.5">task context</text>
+      <!-- human -->
+      <line x1="920" y1="130" x2="952" y2="130" stroke="#ff4fd8" stroke-width="2" marker-end="url(#ar)"/>
+      <rect x="956" y="70" width="130" height="120" rx="10" fill="#151a25" stroke="#22d3ee" stroke-width="1.5"/>
+      <text x="1021" y="104" text-anchor="middle" fill="#22d3ee" font-family="DM Mono, monospace" font-size="10.5" letter-spacing="1.2">HITL GATE</text>
+      <text x="1021" y="126" text-anchor="middle" fill="#f2f6ff" font-family="Syne, sans-serif" font-weight="700" font-size="15">Human review</text>
+      <text x="1021" y="148" text-anchor="middle" fill="#b9cdf0" font-size="11.5">Approve · Request info</text>
+      <text x="1021" y="166" text-anchor="middle" fill="#b9cdf0" font-size="11.5">Escalate to MD</text>
+      <!-- MCP bus -->
+      <line x1="276" y1="212" x2="276" y2="262" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arc)" marker-start="url(#arc)"/>
+      <line x1="546" y1="212" x2="546" y2="262" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arc)" marker-start="url(#arc)"/>
+      <line x1="816" y1="212" x2="816" y2="262" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arc)" marker-start="url(#arc)"/>
+      <rect x="176" y="266" width="740" height="54" rx="10" fill="rgba(34,211,238,.08)" stroke="#22d3ee" stroke-width="1.5"/>
+      <text x="546" y="290" text-anchor="middle" fill="#f2f6ff" font-family="Syne, sans-serif" font-weight="700" font-size="15">Model Context Protocol</text>
+      <text x="546" y="309" text-anchor="middle" fill="#b9cdf0" font-size="11.5">tools/list · tools/call over streamable HTTP · scoped service identity per agent · PHI-minimized responses</text>
+      <!-- servers -->
+      <g font-size="11.5">
+        <g transform="translate(176,350)"><rect width="114" height="76" rx="8" fill="#151a25" stroke="#33405c"/><text x="10" y="22" fill="#f2f6ff" font-weight="700">FHIR R4</text><text x="10" y="42" fill="#b9cdf0">Patient, Condition</text><text x="10" y="58" fill="#b9cdf0">MedicationStatement</text></g>
+        <g transform="translate(301,350)"><rect width="114" height="76" rx="8" fill="#151a25" stroke="#33405c"/><text x="10" y="22" fill="#f2f6ff" font-weight="700">Terminology</text><text x="10" y="42" fill="#b9cdf0">RxNorm (RxNav)</text><text x="10" y="58" fill="#b9cdf0">ICD-10-CM, CPT</text></g>
+        <g transform="translate(426,350)"><rect width="114" height="76" rx="8" fill="#151a25" stroke="#33405c"/><text x="10" y="22" fill="#f2f6ff" font-weight="700">Payer policy</text><text x="10" y="42" fill="#b9cdf0">Coverage criteria</text><text x="10" y="58" fill="#b9cdf0">versioned chunks</text></g>
+        <g transform="translate(551,350)"><rect width="114" height="76" rx="8" fill="#151a25" stroke="#33405c"/><text x="10" y="22" fill="#f2f6ff" font-weight="700">Eligibility</text><text x="10" y="42" fill="#b9cdf0">Benefits, plan</text><text x="10" y="58" fill="#b9cdf0">claims history</text></g>
+        <g transform="translate(676,350)"><rect width="114" height="76" rx="8" fill="#151a25" stroke="#33405c"/><text x="10" y="22" fill="#f2f6ff" font-weight="700">Knowledge</text><text x="10" y="42" fill="#b9cdf0">Guidelines</text><text x="10" y="58" fill="#b9cdf0">literature</text></g>
+        <g transform="translate(801,350)"><rect width="115" height="76" rx="8" fill="#151a25" stroke="#33405c"/><text x="10" y="22" fill="#f2f6ff" font-weight="700">Vector + graph</text><text x="10" y="42" fill="#b9cdf0">FAISS / Weaviate</text><text x="10" y="58" fill="#b9cdf0">Neo4j</text></g>
+      </g>
+      <line x1="546" y1="322" x2="546" y2="346" stroke="#22d3ee" stroke-width="1.5" marker-end="url(#arc)"/>
+      <!-- audit -->
+      <rect x="14" y="452" width="1072" height="50" rx="10" fill="rgba(163,230,53,.06)" stroke="#a3e635" stroke-dasharray="5 4"/>
+      <text x="32" y="482" fill="#a3e635" font-family="DM Mono, monospace" font-size="12" letter-spacing="1">AUDIT + OBSERVABILITY</text>
+      <text x="210" y="482" fill="#b9cdf0" font-size="12">Every A2A message, MCP call, model call, guardrail result, and human decision → OpenTelemetry span + SHA-256 hash-chained ledger entry</text>
+      <line x1="1021" y1="192" x2="1021" y2="448" stroke="#a3e635" stroke-width="1" stroke-dasharray="3 4"/>
+      <line x1="78" y1="192" x2="78" y2="448" stroke="#a3e635" stroke-width="1" stroke-dasharray="3 4"/>
+    </svg>
+  </div>
+
+  <div class="sec-head"><span class="label">03 · Communication</span><h2>Two protocols, two jobs</h2></div>
+  <div class="grid2">
+    <div class="card" style="border-color:rgba(255,79,216,.4)">
+      <h3 style="color:var(--magenta)">A2A · agent to agent</h3>
+      <p>Each agent publishes an Agent Card describing its skills and endpoint. Agents hand work forward with JSON-RPC <span class="mono">message/send</span>, sharing one <span class="mono">contextId</span> for the case. Structured clinical context travels as a <span class="mono">DataPart</span>; the narrative rationale as a <span class="mono">TextPart</span>.</p>
+      <ul><li>Task states: <span class="mono">submitted → working → input-required → completed</span></li><li><span class="mono">input-required</span> is how the system pauses for a human reviewer</li><li>Agents stay independently deployable and replaceable</li></ul>
+    </div>
+    <div class="card" style="border-color:rgba(34,211,238,.4)">
+      <h3 style="color:var(--cyan)">MCP · agent to tools and data</h3>
+      <p>Agents never query the EHR or policy store directly. They call narrow MCP tools such as <span class="mono">fhir_search</span>, <span class="mono">rxnorm_normalize</span>, and <span class="mono">policy_search</span>, each served by a FastAPI-based MCP server with its own identity and least-privilege scope.</p>
+      <ul><li>Tool schemas constrain what a model can request</li><li>Servers return only the fields the task needs (PHI minimization)</li><li>Every call is logged with arguments hash and result hash</li></ul>
+    </div>
+  </div>
+
+  <div class="sec-head"><span class="label">04 · Stack</span><h2>Technical stack</h2></div>
+  <div class="tablewrap">
+    <table class="stack">
+      <thead><tr><th>Layer</th><th>Technology</th><th>Role in this system</th></tr></thead>
+      <tbody>
+        <tr><td>Agents</td><td>Google Agent Development Kit (Python)</td><td>Three LlmAgents with tool definitions, each exposed as an A2A server</td></tr>
+        <tr><td>Agent comms</td><td>A2A protocol (JSON-RPC over HTTPS)</td><td>Agent Cards, task lifecycle, shared case context, human pause via input-required</td></tr>
+        <tr><td>Models</td><td>Gemini on Vertex AI</td><td>Entity extraction, criteria matching, evidence synthesis with structured output</td></tr>
+        <tr><td>Tools</td><td>MCP servers on FastAPI</td><td>FHIR R4, RxNorm (NLM RxNav), payer policy, eligibility, guideline retrieval</td></tr>
+        <tr><td>Interop</td><td>FHIR R4, Da Vinci CRD / DTR / PAS</td><td>Inbound request shape and outbound Claim/ClaimResponse alignment</td></tr>
+        <tr><td>Retrieval</td><td>Hybrid BM25 + vector (FAISS or Weaviate), Neo4j</td><td>Policy and guideline chunks; graph links between criteria, codes, and evidence</td></tr>
+        <tr><td>Safety</td><td>Grounding checks, schema validation, HITL gate</td><td>Every claim cites a source; agents cannot issue a denial</td></tr>
+        <tr><td>Observability</td><td>OpenTelemetry → Cloud Trace / Logging</td><td>One trace per case across all three agents and every tool call</td></tr>
+        <tr><td>Audit</td><td>SHA-256 hash-chained ledger</td><td>Tamper-evident record of inputs, outputs, versions, and reviewer decision</td></tr>
+        <tr><td>Platform</td><td>Containers on GKE (or Cloud Run), Terraform, CI/CD with GitOps</td><td>Per-agent deployment, Workload Identity, policy-as-code</td></tr>
+        <tr><td>Data protection</td><td>Confidential Computing (Confidential GKE nodes / Confidential Space), CMEK, VPC-SC</td><td>PHI encrypted in use, at rest, and in transit; HIPAA-aligned architecture under a BAA</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="sec-head"><span class="label">05 · Implementation evidence</span><h2>Screenshots</h2></div>
+  <p style="color:var(--soft);margin:-6px 0 14px;max-width:70ch">Add screenshots of the running backend here: ADK dev UI, A2A Agent Card response, MCP tool listing, Cloud Trace waterfall. Images stay in this browser only.</p>
+  <div class="shots" id="shots"></div>
+</section>
+
+<!-- ================= LIVE RUN ================= -->
+<section class="view" id="run" hidden>
+  <div class="banner" style="margin-bottom:18px"><b>Simulation.</b> Patient, payer, policy, and model outputs are fictional and generated in this page. Edit the clinical note and rerun: the intake extraction, policy match, and recommendation change with it. Audit hashes are real SHA-256.</div>
+  <div class="console">
+    <div class="pane">
+      <div class="pane-h"><h3 style="font-size:16px">Prior authorization request</h3><span class="label">FHIR ServiceRequest</span></div>
+      <div class="pane-b">
+        <div class="label" style="margin-bottom:6px">Scenario</div>
+        <div class="presets" id="presets"></div>
+        <div class="row2">
+          <div class="field"><label for="f-name">Patient</label><input id="f-name"></div>
+          <div class="field"><label for="f-dob">DOB</label><input id="f-dob"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="f-member">Member ID</label><input id="f-member"></div>
+          <div class="field"><label for="f-payer">Payer</label><input id="f-payer"></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="f-cpt">Service (CPT)</label><select id="f-cpt"><option value="72148">72148 · MRI lumbar spine w/o contrast</option></select></div>
+          <div class="field"><label for="f-icd">Diagnosis (ICD-10)</label><select id="f-icd"><option value="M54.16">M54.16 · Radiculopathy, lumbar</option><option value="M54.50">M54.50 · Low back pain, unspecified</option></select></div>
+        </div>
+        <div class="field"><label for="f-note">Clinical note</label><textarea id="f-note"></textarea></div>
+        <div class="field"><label for="f-fault">Fault injection</label><select id="f-fault">
+          <option value="none">None · happy path</option>
+          <option value="mcp_timeout">MCP timeout · policy server slow (transient)</option>
+          <option value="mcp_down">MCP outage · eligibility server down</option>
+          <option value="policy_missing">Missing policy document</option>
+          <option value="grounding_fail">Grounding check fails on first draft</option>
+        </select></div>
+        <p class="fault-note" id="fault-note"></p>
+        <div class="ctrl">
+          <button class="btn primary" id="b-run">Submit request</button>
+          <button class="btn" id="b-step" title="Run one step at a time">Step mode</button>
+          <button class="btn" id="b-reset">Reset</button>
+          <span class="speed"><label for="f-speed">Speed</label><select id="f-speed"><option value="1">1×</option><option value="0.5" selected>2×</option><option value="0.2">5×</option></select></span>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;min-width:0">
+      <div class="pane">
+        <div class="pane-h"><h3 style="font-size:16px">Agent pipeline</h3><span class="label mono" id="ctxid">contextId · —</span></div>
+        <div class="pipeline" id="pipeline"></div>
+        <div class="progress" id="progress"></div>
+      </div>
+      <div class="pane">
+        <div class="itabs" role="tablist" id="itabs">
+          <button role="tab" data-i="events" aria-selected="true">Timeline<span class="n" id="n-events"></span></button>
+          <button role="tab" data-i="output" aria-selected="false">Agent outputs</button>
+          <button role="tab" data-i="tools" aria-selected="false">MCP tool calls<span class="n" id="n-tools"></span></button>
+          <button role="tab" data-i="a2a" aria-selected="false">A2A messages<span class="n" id="n-a2a"></span></button>
+          <button role="tab" data-i="trace" aria-selected="false">Trace</button>
+          <button role="tab" data-i="review" aria-selected="false">Human review</button>
+          <button role="tab" data-i="audit" aria-selected="false">Audit record</button>
+        </div>
+        <div class="ibody" id="ibody"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= ENGINEERING ================= -->
+<section class="view" id="eng" hidden>
+  <div class="hero" style="grid-template-columns:1fr">
+    <div>
+      <div class="label" style="color:var(--cyan)">AgentThree AI</div>
+      <h1 style="margin-top:10px">Engineering capabilities</h1>
+      <p>What each layer uses, and the concrete evidence behind it. Status for each component is tracked on the Build status tab.</p>
+    </div>
+  </div>
+  <div class="grid4" id="caps"></div>
+
+  <div class="sec-head"><span class="label">Design decisions</span><h2>Choices a reviewer will ask about</h2></div>
+  <div class="grid3">
+    <div class="card"><h3>Agents cannot deny</h3><p>The Prior Authorization Agent can recommend approval or pend for information. Adverse determinations route to a licensed reviewer. This mirrors state and CMS expectations on clinician involvement in denials.</p></div>
+    <div class="card"><h3>Criteria, not vibes</h3><p>Policy criteria are retrieved as discrete, versioned chunks and evaluated one by one. Each verdict carries the evidence span and policy section it relied on, so a reviewer can disagree with a single line.</p></div>
+    <div class="card"><h3>Why A2A between agents</h3><p>Intake, authorization, and decision support have different owners, data scopes, and release cycles. A2A keeps them as separate services with explicit contracts instead of one prompt with three personas.</p></div>
+    <div class="card"><h3>Why MCP for tools</h3><p>One tool contract serves any agent framework. Each MCP server enforces its own authorization and field-level minimization, so the model only sees what the tool returns.</p></div>
+    <div class="card"><h3>Evaluation</h3><p>A labeled set of synthetic cases scores extraction F1, criterion-level agreement with clinician reviewers, citation validity, and end-to-end task success. Regressions block deploys in CI.</p></div>
+    <div class="card"><h3>Failure handling</h3><p>Tool calls retry with backoff and idempotency keys. If grounding fails or a source is unavailable, the case pends with the reason recorded rather than proceeding on partial evidence.</p></div>
+  </div>
+</section>
+
+<!-- ================= EVALUATION ================= -->
+<section class="view" id="eval" hidden>
+  <div class="hero" style="grid-template-columns:1.3fr 1fr">
+    <div>
+      <div class="label" style="color:var(--cyan)">Synthetic-case test suite</div>
+      <h1 style="margin-top:10px">Evaluation</h1>
+      <p>Each run executes the pipeline against labeled synthetic cases, including fault-injected ones, and scores five metrics. Failures are shown, not hidden: they explain why every case still ends at a human reviewer.</p>
+    </div>
+    <div class="banner"><b>What these numbers measure.</b> The Simulation column is computed live in this page from the demo's deterministic rules engine, so it reflects this demo's logic. The Backend column shows results from your production eval harness once loaded below.</div>
+  </div>
+  <div class="tbtn"><button class="btn primary" id="e-run">Run evaluation</button><label class="speed"><input type="checkbox" id="e-fail"> Show failures only</label><span class="mono" style="font-size:12px;color:var(--soft)" id="e-stamp"></span></div>
+  <div class="kpis" id="kpis"></div>
+  <div class="grid2" style="margin-top:20px">
+    <div class="card"><h3>Routing outcome · expected vs. predicted</h3><p>Rows are the labeled outcome, columns what the pipeline routed. Off-diagonal cells are errors.</p><div style="overflow-x:auto" id="cm"></div></div>
+    <div class="card"><h3>Criterion agreement and fault handling</h3><p>Per-criterion agreement with labeled criterion status, then how each injected fault was handled.</p><div id="crit-agree"></div><div id="fault-tab" style="margin-top:14px;overflow-x:auto"></div></div>
+  </div>
+  <div class="sec-head"><span class="label">Per case</span><h2>Case results</h2></div>
+  <div class="tablewrap"><table class="res" id="restab"></table></div>
+  <div class="sec-head"><span class="label">Backend</span><h2>Load results from your eval harness</h2></div>
+  <div class="grid2">
+    <div class="card"><p>Paste the JSON summary your backend test run produces. It fills the Backend line on each metric tile and is kept in this browser.</p>
+      <textarea class="bein" id="be-json" aria-label="Backend results JSON" spellcheck="false"></textarea>
+      <div class="tbtn" style="margin-top:10px;margin-bottom:0"><button class="btn" id="be-load">Load backend results</button><button class="btn" id="be-clear">Clear</button><span id="be-msg" class="mono" style="font-size:12px"></span></div></div>
+    <div class="card"><h3>Expected format</h3><pre class="json" id="be-schema"></pre></div>
+  </div>
+</section>
+
+<!-- ================= BUILD STATUS ================= -->
+<section class="view" id="build" hidden>
+  <div class="hero" style="grid-template-columns:1.3fr 1fr">
+    <div>
+      <div class="label" style="color:var(--cyan)">Simulated vs. implemented</div>
+      <h1 style="margin-top:10px">Build status</h1>
+      <p>Click a status to cycle it (Simulated → In progress → Built) and add the repo path, endpoint, or screenshot reference that backs it. Settings are kept in this browser.</p>
+    </div>
+    <div class="banner"><b>Presenter note.</b> A row can only show Built once it has a GitHub link or screenshot reference; without one it shows a warning. Use Export to send the filled table back for embedding so everyone you share with sees it.</div>
+  </div>
+  <div class="tbtn"><button class="btn" id="b-export">Export status JSON</button><span class="mono" style="font-size:12px;color:var(--soft)" id="b-summary"></span></div>
+  <div class="tablewrap">
+    <table class="stack" id="buildtable">
+      <thead><tr><th>Component</th><th>What it does</th><th>Status</th><th>Evidence</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<footer>AgentThree · fictional patients, payer, and policy · not for clinical use · HIPAA-aligned reference architecture</footer>
+</main>
+
+<script>
+(() => {
+'use strict';
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = {
+  get(k, d){ try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } }
+};
+
+/* ---------- top tabs ---------- */
+function showView(id){
+  $$('.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === id));
+  $$('section.view').forEach(s => s.hidden = s.id !== id);
+  window.scrollTo({top:0});
+}
+$$('.tabs button').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+const h = (location.hash || '').slice(1);
+if (['overview','run','eng','eval','build'].includes(h)) showView(h);
+
+/* ---------- screenshots ---------- */
+/* EVIDENCE CONFIG: embed real screenshots by setting src to a data: URI (or a file published beside this page). */
+const SHOTS = [
+  {d:'ADK dev UI · agent run', src:''},
+  {d:'A2A Agent Card (JSON)', src:''},
+  {d:'MCP server tools/list', src:''},
+  {d:'Cloud Trace waterfall', src:''}
+];
+function renderShots(){
+  const saved = store.get('a3-shots', {});
+  $('#shots').innerHTML = SHOTS.map(({d, src: baked}, i) => {
+    const s = {...saved[i]}; if (!s.src && baked) s.src = baked;
+    return `<div class="shot"><div class="img">${s.src ? `<img src="${s.src}" alt="${esc(s.cap || d)}">` : `Screenshot slot<br>${esc(d)}`}</div>
+      <div class="cap2"><input type="text" id="shotcap${i}" value="${esc(s.cap || d)}" aria-label="Caption">
+      <label class="up" for="shotf${i}">${s.src ? 'Replace image' : 'Add image'}</label><input type="file" id="shotf${i}" accept="image/*" data-i="${i}"></div></div>`;
+  }).join('');
+  $$('#shots input[type=file]').forEach(inp => inp.addEventListener('change', e => {
+    const f = e.target.files[0]; if (!f) return; const i = +e.target.dataset.i;
+    const r = new FileReader();
+    r.onload = () => { const all = store.get('a3-shots', {}); all[i] = {...(all[i]||{}), src:r.result, cap:$('#shotcap'+i).value};
+      if (!store.set('a3-shots', all)) { const img = $('#shots .shot:nth-child('+(i+1)+') .img'); img.innerHTML = `<img src="${r.result}" alt="">`; return; }
+      renderShots(); };
+    r.readAsDataURL(f);
+  }));
+  $$('#shots input[type=text]').forEach((inp, i) => inp.addEventListener('change', () => { const all = store.get('a3-shots', {}); all[i] = {...(all[i]||{}), cap:inp.value}; store.set('a3-shots', all); }));
+}
+renderShots();
+
+/* ---------- engineering caps ---------- */
+const CAPS = [
+  {k:'Agent Orchestration', t:'Google ADK / A2A', c:'var(--lime)', ico:'A2A', ev:['3 ADK agents, each served as an A2A endpoint','Agent Cards with declared skills and auth','Shared contextId per case; input-required for HITL','Chips: ADK · A2A · Gemini on Vertex AI']},
+  {k:'Tool Integration', t:'MCP / FastAPI / FHIR', c:'var(--cyan)', ico:'MCP', ev:['MCP servers: FHIR R4, RxNorm, policy, eligibility','Typed tool schemas; least-privilege service identity','FHIR R4 resources aligned to Da Vinci PAS','Retries with idempotency keys']},
+  {k:'Grounding & Retrieval', t:'RAG / Vector / Graph', c:'var(--violet)', ico:'RAG', ev:['Hybrid BM25 + vector retrieval with reranking','Versioned policy chunks, one per criterion','Neo4j links criteria ↔ codes ↔ evidence','Every recommendation carries citations']},
+  {k:'Security & Governance', t:'HIPAA / Confidential Computing', c:'var(--amber)', ico:'SEC', ev:['HIPAA-aligned design under a BAA','Confidential GKE nodes / Confidential Space','CMEK, VPC Service Controls, Workload Identity','SHA-256 hash-chained audit ledger']}
+];
+$('#caps').innerHTML = CAPS.map(c => `<div class="cap" style="--c:${c.c}">
+  <div class="top2"><span class="ico" style="background:color-mix(in srgb, ${c.c} 16%, transparent);color:${c.c}">${c.ico}</span><h3 class="label" style="color:${c.c}">${c.k}</h3></div>
+  <div class="tech">${c.t}</div>
+  <div class="ev2">${c.ev.map(e => `<div>${esc(e)}</div>`).join('')}</div></div>`).join('');
+
+/* ---------- build status ---------- */
+/* BUILD CONFIG: [component, what it does, status (0 Simulated, 1 In progress, 2 Built), evidence (GitHub URL or screenshot ref)] */
+const BUILD = [
+  ['Clinical Intake Agent','ADK agent: entity extraction, FHIR/RxNorm normalization, gap detection',0,''],
+  ['Prior Authorization Agent','ADK agent: eligibility, policy retrieval, criterion matching',0,''],
+  ['Clinical Decision Support Agent','ADK agent: guideline retrieval, cited and scored findings',0,''],
+  ['A2A wiring + Agent Cards','Agent-to-agent message/send, task states, shared contextId',0,''],
+  ['MCP server · FHIR R4','FastAPI MCP server over a FHIR store (e.g., Cloud Healthcare API, HAPI)',0,''],
+  ['MCP server · RxNorm','Normalization via NLM RxNav',0,''],
+  ['MCP server · payer policy RAG','Policy ingestion, chunking, hybrid retrieval',0,''],
+  ['Vector store','FAISS or Weaviate index for policies and guidelines',0,''],
+  ['Graph store','Neo4j criteria/code/evidence graph',0,''],
+  ['Human review UI','Reviewer gate with approve, request info, escalate',0,''],
+  ['Retry, circuit breaker, escalation','Backoff with idempotency keys, breaker on repeated MCP failure, HITL escalation',0,''],
+  ['Tracing','OpenTelemetry spans to Cloud Trace across agents and tools',0,''],
+  ['Audit ledger','SHA-256 hash chain of every event and decision',0,''],
+  ['Evaluation harness','Synthetic case set scored on the five Evaluation metrics',0,''],
+  ['Deployment','Containers on GKE / Cloud Run, Terraform, CI/CD',0,''],
+  ['Confidential Computing','Confidential GKE nodes or Confidential Space for PHI workloads',0,''],
+  ['This simulation','Bundled HTML front end with fault injection and in-browser eval (this page)',2,'agentthree-prior-auth.html']
+];
+const ST = [['sim','Simulated'],['prog','In progress'],['built','Built']];
+const rowState = (saved, i) => saved[i] || {st: BUILD[i][2], ev: BUILD[i][3]};
+const evHtml = ev => /^https?:\/\//.test(ev) ? `<a href="${esc(ev)}" target="_blank" rel="noopener">${esc(ev.replace(/^https?:\/\/(www\.)?/,''))}</a>` : '';
+function renderBuild(){
+  const saved = store.get('a3-build', {});
+  let counts = [0,0,0], missing = 0;
+  $('#buildtable tbody').innerHTML = BUILD.map(([n, d], i) => {
+    const s = rowState(saved, i); const [cls, lbl] = ST[s.st]; counts[s.st]++;
+    const needs = s.st === 2 && !String(s.ev || '').trim(); if (needs) missing++;
+    return `<tr><td>${esc(n)}</td><td>${esc(d)}</td><td><button class="status s-${cls}" data-i="${i}">${lbl}</button>${needs ? '<div class="warnev">⚠ needs evidence</div>' : ''}</td>
+      <td><input class="evin" id="ev${i}" data-i="${i}" placeholder="https://github.com/… or screenshot ref" value="${esc(s.ev || '')}"><div style="font-size:12px;margin-top:3px">${evHtml(s.ev || '')}</div></td></tr>`;
+  }).join('');
+  $('#b-summary').textContent = `${counts[2]} built · ${counts[1]} in progress · ${counts[0]} simulated${missing ? ` · ${missing} built without evidence` : ''}`;
+  $$('#buildtable .status').forEach(b => b.addEventListener('click', () => {
+    const all = store.get('a3-build', {}); const i = +b.dataset.i;
+    const cur = rowState(all, i); cur.ev = $('#ev'+i).value; cur.st = (cur.st + 1) % 3; all[i] = cur; store.set('a3-build', all); renderBuild();
+  }));
+  $$('#buildtable .evin').forEach(inp => inp.addEventListener('change', () => {
+    const all = store.get('a3-build', {}); const i = +inp.dataset.i;
+    const cur = rowState(all, i); cur.ev = inp.value; all[i] = cur; store.set('a3-build', all); renderBuild();
+  }));
+}
+renderBuild();
+$('#b-export').addEventListener('click', () => {
+  const saved = store.get('a3-build', {});
+  const out = JSON.stringify(BUILD.map(([n], i) => { const s = rowState(saved, i); return {component:n, status:ST[s.st][1], evidence:s.ev || ''}; }), null, 2);
+  const b = $('#b-export');
+  try { navigator.clipboard.writeText(out).then(() => { b.textContent = 'Copied to clipboard'; setTimeout(() => b.textContent = 'Export status JSON', 1800); }, () => { $('#b-summary').textContent = out; }); }
+  catch { $('#b-summary').textContent = out; }
+});
+
+/* =================== SIMULATION =================== */
+const PRESETS = {
+  meets: {label:'Meets criteria', name:'Jordan Rivera', dob:'1968-03-14', member:'AHP-0042-7781', payer:'Acme Health Plan', icd:'M54.16',
+    note:`58-year-old with low back pain radiating down the left leg for 9 weeks. Completed 6 weeks of physical therapy (12 visits) without meaningful improvement. Trialed naproxen 500 mg twice daily and cyclobenzaprine 10 mg at bedtime. Exam: positive straight-leg raise on the left, diminished left ankle reflex, numbness in the L5-S1 distribution. No bowel or bladder changes. No history of cancer. No prior lumbar imaging. Candidate for epidural steroid injection pending imaging.`},
+  gap: {label:'Missing documentation', name:'Casey Morgan', dob:'1979-11-02', member:'AHP-0042-3310', payer:'Acme Health Plan', icd:'M54.50',
+    note:`Patient reports low back pain for about 3 weeks after lifting boxes. Taking naproxen 500 mg as needed. Exam notes tenderness over the lumbar paraspinals, full strength in both legs. Requesting MRI to rule out disc herniation.`},
+  redflag: {label:'Red flag · urgent', name:'Avery Chen', dob:'1961-06-27', member:'AHP-0042-9054', payer:'Acme Health Plan', icd:'M54.16',
+    note:`Acute worsening low back pain over 48 hours with new saddle numbness and urinary retention. Bilateral leg weakness on exam. Gabapentin 300 mg started last week for radicular pain. Requesting urgent lumbar MRI.`}
+};
+const MEDS = [
+  {name:'naproxen', rxcui:'7258', cls:'NSAID'},
+  {name:'cyclobenzaprine', rxcui:'21949', cls:'Muscle relaxant'},
+  {name:'gabapentin', rxcui:'25480', cls:'Anticonvulsant (neuropathic pain)'},
+  {name:'ibuprofen', rxcui:'5640', cls:'NSAID'},
+  {name:'prednisone', rxcui:'8640', cls:'Oral corticosteroid'}
+];
+const ICD = {'M54.16':'Radiculopathy, lumbar region','M54.50':'Low back pain, unspecified'};
+
+let preset = 'meets';
+function loadPreset(k){
+  preset = k; const p = PRESETS[k];
+  $('#f-name').value = p.name + ' (fictional)'; $('#f-dob').value = p.dob; $('#f-member').value = p.member;
+  $('#f-payer').value = p.payer + ' (fictional)'; $('#f-icd').value = p.icd; $('#f-note').value = p.note;
+  $$('#presets button').forEach(b => b.classList.toggle('on', b.dataset.k === k));
+}
+$('#presets').innerHTML = Object.entries(PRESETS).map(([k, p]) => `<button data-k="${k}">${p.label}</button>`).join('');
+$$('#presets button').forEach(b => b.addEventListener('click', () => { if (!running) { loadPreset(b.dataset.k); resetRun(); } }));
+loadPreset('meets');
+
+/* --- intake extraction (deterministic NLP stand-in for the LLM step) --- */
+function sentences(t){ return t.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean); }
+const NEG = /\b(no|denies|without|negative for|full strength)\b/i;
+function findAffirmed(note, re){
+  for (const s of sentences(note)) { const m = s.match(re); if (m && !NEG.test(s.slice(0, m.index))) return s; }
+  return null;
+}
+function extract(note, icd){
+  const t = note.toLowerCase();
+  const meds = MEDS.filter(m => t.includes(m.name)).map(m => {
+    const mm = t.match(new RegExp(m.name + '\\s+(\\d+\\s*mg)')); return {...m, dose: mm ? mm[1].replace(/\s+/,' ') : null};
+  });
+  const ptM = t.match(/(\d+)\s*weeks?\s+of\s+(physical therapy|pt\b)/);
+  const symM = t.match(/for\s+(?:about\s+)?(\d+)\s*weeks?/);
+  const ptWeeks = ptM ? +ptM[1] : 0;
+  const symptomWeeks = symM ? +symM[1] : (/\b\d+\s*hours?\b/.test(t) ? 0 : null);
+  const conservativeWeeks = ptWeeks || (meds.length && symptomWeeks ? symptomWeeks : 0);
+  const neuroS = findAffirmed(note, /(numbness|weakness|reflex|foot drop|straight-leg raise)/i);
+  const radicS = findAffirmed(note, /(radiat|radicular|sciatica|down the (left|right)? ?leg)/i);
+  const cauda = findAffirmed(note, /(saddle|urinary retention|incontinence)/i);
+  const cancer = findAffirmed(note, /(history of cancer|malignancy|metasta)/i);
+  const prior = findAffirmed(note, /(prior|previous)\s+(lumbar\s+)?(mri|imaging)/i);
+  const redFlags = [];
+  if (cauda) redFlags.push({flag:'Possible cauda equina syndrome', evidence:cauda});
+  if (cancer) redFlags.push({flag:'History of malignancy', evidence:cancer});
+  const gaps = [];
+  if (!redFlags.length && conservativeWeeks < 6) gaps.push(conservativeWeeks ? `Conservative therapy documented for ${conservativeWeeks} week(s)${ptWeeks ? '' : ', medication only, no physical therapy'}; policy requires 6.` : 'No documented course of physical therapy or 6-week conservative treatment.');
+  if (!neuroS && !radicS) gaps.push('No objective neurologic finding or radicular symptom documented.');
+  if (!redFlags.length && meds.some(m => !m.dose)) gaps.push('Medication dose or duration missing for at least one agent.');
+  return {icd, icdText: ICD[icd], meds, ptWeeks, symptomWeeks, conservativeWeeks, neuroS, radicS, redFlags, prior, gaps};
+}
+
+function evaluatePolicy(x){
+  const urgent = x.redFlags.length > 0;
+  const crit = [
+    {id:'C1', text:'Diagnosis consistent with lumbar radiculopathy or persistent low back pain', sec:'§3.1',
+      st:'met', ev:`${x.icd} · ${x.icdText}`},
+    {id:'C2', text:'At least 6 weeks of documented conservative therapy (PT, NSAIDs, activity modification)', sec:'§3.2',
+      st: urgent ? 'waive' : (x.conservativeWeeks >= 6 ? 'met' : 'not'),
+      ev: urgent ? 'Waived under §4 red-flag exception' : (x.conservativeWeeks ? `${x.conservativeWeeks} weeks documented` : 'Not documented')},
+    {id:'C3', text:'Objective neurologic deficit or persistent radicular symptoms', sec:'§3.3',
+      st: (x.neuroS || x.radicS) ? 'met' : 'not', ev: x.neuroS || x.radicS || 'Not documented'},
+    {id:'C4', text:'No lumbar MRI in prior 12 months without interval change', sec:'§3.4',
+      st: x.prior ? 'not' : 'met', ev: x.prior ? x.prior : 'No prior lumbar imaging in claims history (eligibility tool)'}
+  ];
+  if (urgent) crit.push({id:'C5', text:'Red-flag exception: suspected cauda equina, malignancy, infection, or fracture', sec:'§4', st:'met', ev: x.redFlags.map(r => r.flag).join('; ')});
+  const allMet = crit.every(c => c.st !== 'not');
+  const outcome = urgent ? 'urgent' : allMet ? 'meets' : 'pend';
+  return {crit, outcome, policy:{id:'AHP-RAD-014', title:'Advanced Imaging of the Lumbar Spine (fictional)', version:'3.2', effective:'2026-07-01'}};
+}
+
+function cdsEvaluate(x, pol){
+  const recs = [];
+  if (pol.outcome === 'urgent') {
+    recs.push({t:'Emergent imaging is indicated. Findings of saddle anesthesia with urinary retention warrant same-day MRI and surgical evaluation.', conf:.95, cite:['GL-ACR-LBP v.red-flag','GL-NASS-CES §2']});
+    recs.push({t:'Route as expedited review under the urgent decision timeframe.', conf:.92, cite:['REG-CMS-0057-F timeframes']});
+  } else if (pol.outcome === 'meets') {
+    recs.push({t:'MRI is appropriate: radicular symptoms with objective deficit persist after 6+ weeks of conservative care, and the patient is a candidate for intervention.', conf:.88, cite:['GL-ACR-LBP v.subacute-radiculopathy','GL-ACP-2017 rec 3']});
+    recs.push({t:'Consider documenting PT discharge summary in the record to strengthen audit trail.', conf:.71, cite:['POL-AHP-RAD-014 §5']});
+  } else {
+    recs.push({t:'Imaging within the first 6 weeks of uncomplicated low back pain without red flags is generally not recommended.', conf:.86, cite:['GL-ACR-LBP v.acute-uncomplicated','GL-ACP-2017 rec 1']});
+    recs.push({t:'Alternative: continue conservative therapy and reassess at 6 weeks; request PT records or exam documenting neurologic findings if present.', conf:.79, cite:['GL-ACP-2017 rec 2','POL-AHP-RAD-014 §3.2']});
+  }
+  const risks = pol.outcome === 'urgent' ? ['Delay risks permanent neurologic injury'] : pol.outcome === 'meets' ? ['Incidental findings are common on lumbar MRI; correlate clinically'] : ['Early imaging may lead to low-value downstream procedures'];
+  return {recs, risks, grounding:{claims:recs.length, cited:recs.length, unsupported:0}};
+}
+
+/* --- grounding guardrail: every claim needs >=1 citation that resolves in the source registry --- */
+const REGISTRY = new Set(['GL-ACR-LBP v.red-flag','GL-NASS-CES §2','REG-CMS-0057-F timeframes','GL-ACR-LBP v.subacute-radiculopathy','GL-ACP-2017 rec 3','POL-AHP-RAD-014 §5','GL-ACR-LBP v.acute-uncomplicated','GL-ACP-2017 rec 1','GL-ACP-2017 rec 2','POL-AHP-RAD-014 §3.2']);
+const UNSUPPORTED = {t:'Early MRI reduces long-term disability in most patients with back pain.', conf:.64, cite:['GL-UNKNOWN-2021']};
+function groundingCheck(recs){
+  const bad = recs.filter(r => !r.cite.length || !r.cite.every(id => REGISTRY.has(id)));
+  return {claims: recs.length, cited: recs.length - bad.length, unsupported: bad.length, bad};
+}
+const FAULT_NOTES = {
+  none:'',
+  mcp_timeout:'policy_search times out twice, then succeeds on retry with exponential backoff.',
+  mcp_down:'check_eligibility fails three times, the circuit breaker opens, and the case escalates to a human with the reason.',
+  policy_missing:'policy_search returns no active policy. The agent refuses to infer criteria and escalates.',
+  grounding_fail:'The first evidence draft contains an uncited claim. The guardrail blocks it and the agent regenerates.'
+};
+
+/* --- run state --- */
+let running = false, runId = 0, stepMode = false, stepResolve = null, gateResolve = null;
+let S = null; // run state
+const AGENTS = [
+  {k:'intake', nm:'Clinical Intake', c:'var(--lime)'},
+  {k:'pa', nm:'Prior Authorization', c:'var(--violet)'},
+  {k:'cds', nm:'Decision Support', c:'var(--amber)'},
+  {k:'human', nm:'Human Review', c:'var(--cyan)'}
+];
+let itab = 'events';
+$$('#itabs button').forEach(b => b.addEventListener('click', () => { itab = b.dataset.i; $$('#itabs button').forEach(x => x.setAttribute('aria-selected', x === b)); renderInspector(); }));
+
+function rid(n = 8){ const a = crypto.getRandomValues(new Uint8Array(n)); return [...a].map(b => b.toString(16).padStart(2,'0')).join(''); }
+async function sha256(str){
+  if (crypto.subtle) { const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join(''); }
+  let h1 = 0; for (let i = 0; i < str.length; i++) h1 = (h1 * 31 + str.charCodeAt(i)) | 0; return 'nosubtle-' + (h1 >>> 0).toString(16);
+}
+function stable(o){ return JSON.stringify(o, Object.keys(flatKeys(o)).sort()); }
+function flatKeys(o, acc = {}){ if (o && typeof o === 'object') for (const k of Object.keys(o)) { acc[k] = 1; flatKeys(o[k], acc); } return acc; }
+
+function freshState(){
+  return {ctx:'ctx-' + rid(6), traceId: rid(16), t0: performance.now(), clock:0, events:[], tools:[], a2a:[], spans:[], audit:[], agent:{intake:'idle',pa:'idle',cds:'idle',human:'idle'},
+    x:null, pol:null, cds:null, decision:null, steps:0, total:17, tokens:0, faults:[], fault:'none'};
+}
+function resetRun(){
+  runId++; running = false; gateResolve = null; stepResolve = null; S = null;
+  $('#b-run').disabled = false; $('#b-run').textContent = 'Submit request';
+  $('#ctxid').textContent = 'contextId · —';
+  renderPipeline(); renderProgress(); renderInspector();
+}
+$('#b-reset').addEventListener('click', resetRun);
+$('#b-step').addEventListener('click', () => {
+  if (running && stepMode && stepResolve) { const r = stepResolve; stepResolve = null; r(); return; }
+  stepMode = !stepMode; $('#b-step').textContent = stepMode ? (running ? 'Next step ›' : 'Step mode: on') : 'Step mode';
+  if (!stepMode && stepResolve) { const r = stepResolve; stepResolve = null; r(); }
+});
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function pace(myId, simMs){
+  if (myId !== runId) throw new Error('cancelled');
+  if (stepMode) { $('#b-step').textContent = 'Next step ›'; await new Promise(r => stepResolve = r); }
+  else await sleep(Math.min(1400, Math.max(260, simMs * 1.2)) * (+$('#f-speed').value));
+  if (myId !== runId) throw new Error('cancelled');
+}
+
+async function record(kind, agent, title, opts = {}){
+  const dur = opts.dur || 120;
+  const start = S.clock; S.clock += dur + (opts.gap ?? 15);
+  const span = {name: opts.span || title, agent, kind, start, dur};
+  S.spans.push(span);
+  const ev = {seq: S.events.length + 1, kind, agent, title, ts: new Date().toISOString(), simStartMs: start, durMs: dur, detail: opts.detail || ''};
+  S.events.push(ev);
+  if (opts.tokens) S.tokens += opts.tokens;
+  const body = {seq: ev.seq, ts: ev.ts, contextId: S.ctx, traceId: S.traceId, agent, kind, title, payloadHash: await sha256(JSON.stringify(opts.payload || opts.detail || title))};
+  const prev = S.audit.length ? S.audit[S.audit.length - 1].hash : '0'.repeat(64);
+  body.prevHash = prev; body.hash = await sha256(stable(body));
+  S.audit.push(body);
+  S.steps++;
+  renderPipeline(); renderProgress(); renderInspector();
+}
+async function mcp(agent, server, tool, args, result, dur, attempt = 1){
+  const id = S.tools.length + 1;
+  S.tools.push({agent, server, tool, attempt, req:{jsonrpc:'2.0', id, method:'tools/call', params:{name:tool, arguments:args}}, res:{jsonrpc:'2.0', id, result:{content:[{type:'text', text:'(structured result below)'}], structuredContent: result, isError:false}}, dur});
+  await record('mcp', agent, `${server} · ${tool}${attempt > 1 ? ` (attempt ${attempt})` : ''}`, {dur, span:`mcp.${tool}`, payload:{args, result}, detail: Object.entries(args).map(([k,v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ')});
+}
+async function a2a(from, to, text, data, state, dur){
+  const msgId = 'msg-' + rid(4);
+  const msg = {jsonrpc:'2.0', id: S.a2a.length + 1, method:'message/send', params:{message:{role:'agent', messageId: msgId, contextId: S.ctx, parts:[{kind:'text', text}, ...(data ? [{kind:'data', data}] : [])], metadata:{from, to, traceparent:`00-${S.traceId}-${rid(8)}-01`}}}};
+  const resp = {jsonrpc:'2.0', id: msg.id, result:{kind:'task', id:'task-' + to + '-' + rid(3), contextId: S.ctx, status:{state, timestamp:new Date().toISOString()}}};
+  S.a2a.push({from, to, msg, resp});
+  await record('a2a', from, `${labelOf(from)} → ${labelOf(to)}`, {dur, span:`a2a.message/send → ${to}`, payload: msg, detail:`task state: ${state}`});
+}
+const labelOf = k => ({provider:'Provider portal', intake:'Intake', pa:'Prior Auth', cds:'Decision Support', human:'Reviewer'}[k] || k);
+function setAgent(k, st){ S.agent[k] = st; renderPipeline(); }
+
+async function mcpCall(my, agent, server, tool, args, result, dur, fault){
+  const maxAttempts = 3;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const failing = fault && attempt <= fault.fail;
+    if (!failing) { await pace(my, dur); await mcp(agent, server, tool, args, result, dur, attempt); return {ok:true, attempts:attempt}; }
+    const tmo = fault.kind === 'timeout';
+    await pace(my, tmo ? 900 : 180);
+    const id = S.tools.length + 1;
+    const err = tmo ? {code:-32001, message:'Request timed out after 5000 ms'} : {code:-32603, message:`${server} unavailable (HTTP 503 from upstream)`};
+    S.tools.push({agent, server, tool, attempt, error:true, req:{jsonrpc:'2.0', id, method:'tools/call', params:{name:tool, arguments:args}}, res:{jsonrpc:'2.0', id, error:err}, dur: tmo ? 5000 : 180});
+    await record('err', agent, `${server} · ${tool} failed (attempt ${attempt}/${maxAttempts})`, {dur: tmo ? 5000 : 180, span:`mcp.${tool} ✗`, payload:err, detail:err.message});
+    if (attempt < maxAttempts) {
+      const back = 250 * 2 ** (attempt - 1);
+      await pace(my, 120);
+      await record('retry', agent, `Retry ${tool} after ${back} ms backoff`, {dur:back, span:`retry.backoff ${back}ms`, detail:`exponential backoff with jitter · idempotency-key ${rid(4)}`});
+    }
+  }
+  await pace(my, 60);
+  await record('err', agent, `Circuit breaker opened for ${server}`, {dur:20, span:`circuit.open ${server}`, detail:'3 consecutive failures · calls short-circuited for 60 s'});
+  return {ok:false, attempts:maxAttempts};
+}
+
+async function runSim(){
+  if (running) return;
+  resetRun(); running = true; const my = runId; S = freshState();
+  const fault = S.fault = $('#f-fault').value;
+  $('#b-run').disabled = true; $('#b-run').textContent = 'Running…';
+  if (stepMode) $('#b-step').textContent = 'Next step ›';
+  $('#ctxid').textContent = 'contextId · ' + S.ctx;
+  const note = $('#f-note').value, icd = $('#f-icd').value, member = $('#f-member').value;
+  const pid = 'Patient/demo-' + member.replace(/\D/g,'').slice(-4);
+  try {
+    // ---- intake ----
+    setAgent('intake','working');
+    await pace(my, 90); await a2a('provider','intake','New prior authorization request for CPT 72148.', {resourceType:'Bundle', type:'collection', entry:[{resource:{resourceType:'ServiceRequest', code:{coding:[{system:'http://www.ama-assn.org/go/cpt', code:'72148'}]}, subject:{reference:pid}}}]}, 'submitted', 90);
+    await pace(my, 140); await mcp('intake','fhir-mcp','fhir_read',{resourceType:'Patient', id: pid.split('/')[1]}, {id: pid.split('/')[1], name: '[redacted in trace]', birthDate: $('#f-dob').value, gender:'unknown'}, 140);
+    await pace(my, 180); await mcp('intake','fhir-mcp','fhir_search',{resourceType:'Condition', patient: pid, 'clinical-status':'active'}, {total:1, entry:[{code:{coding:[{system:'http://hl7.org/fhir/sid/icd-10-cm', code: icd, display: ICD[icd]}]}}]}, 180);
+    S.x = extract(note, icd);
+    await pace(my, 1150); await record('llm','intake','Gemini · extract_clinical_entities', {dur:1150, span:'llm.generate extract_clinical_entities', tokens:1840, payload:S.x, detail:`model=gemini (Vertex AI) · structured output · ${S.x.meds.length} meds, ${S.x.neuroS?1:0} neuro finding, ${S.x.redFlags.length} red flags`});
+    for (const m of S.x.meds) { await pace(my, 110); await mcp('intake','rxnorm-mcp','rxnorm_normalize',{term: m.name + (m.dose ? ' ' + m.dose : '')}, {rxcui: m.rxcui, name: m.name, tty:'IN', class: m.cls}, 110); }
+    await pace(my, 60); await record('guard','intake','Completeness check', {dur:60, span:'guardrail.completeness', payload:S.x.gaps, detail: S.x.gaps.length ? `${S.x.gaps.length} documentation gap(s) flagged` : 'No gaps'});
+    setAgent('intake','done');
+    // ---- PA ----
+    setAgent('pa','working');
+    await pace(my, 95); await a2a('intake','pa','Structured clinical context for PA case. ' + (S.x.gaps.length ? 'Documentation gaps present.' : 'No documentation gaps.'), {diagnosis:{code:icd}, medications:S.x.meds.map(m => ({rxcui:m.rxcui, dose:m.dose})), conservativeTherapyWeeks:S.x.conservativeWeeks, neuroFinding:!!S.x.neuroS, redFlags:S.x.redFlags.map(r => r.flag), gaps:S.x.gaps}, 'working', 95);
+    const elig = await mcpCall(my, 'pa','eligibility-mcp','check_eligibility',{member, serviceCode:'72148', dateOfService:new Date().toISOString().slice(0,10)}, {active:true, plan:'Acme Gold PPO (fictional)', paRequired:true, priorLumbarImaging12mo: !!S.x.prior}, 210, fault === 'mcp_down' ? {fail:3, kind:'unavailable'} : null);
+    if (!elig.ok) {
+      S.pol = {crit:[], outcome:'system', policy:null, reason:'Eligibility service unavailable after 3 attempts; coverage could not be confirmed.'};
+      S.faults.push({type:'mcp_down', component:'eligibility-mcp', handling:'3 attempts with backoff → circuit breaker opened → automation halted → escalated to reviewer with reason', recovered:false, escalated:true});
+      setAgent('pa','halted'); setAgent('cds','skipped');
+      await pace(my, 80); await a2a('pa','human','Automated review halted: eligibility service unavailable. Manual handling required.', {reason:S.pol.reason, attempts:3, partialContext:{diagnosis:icd, gaps:S.x.gaps}}, 'input-required', 80);
+      return await humanGate(my);
+    }
+    if (fault === 'policy_missing') {
+      await pace(my, 300); await mcp('pa','policy-mcp','policy_search',{query:'lumbar spine MRI 72148 coverage criteria', payer:'AHP', mode:'hybrid', topK:5}, {hits:[], message:'No active policy indexed for payer AHP + CPT 72148 (index last refreshed 2026-10-14)'}, 300);
+      await pace(my, 70); await record('guard','pa','Policy guardrail · no source, no criteria', {dur:70, span:'guardrail.policy_required', payload:{hits:0}, detail:'Zero policy hits: agent will not infer criteria from model knowledge'});
+      S.pol = {crit:[], outcome:'nopolicy', policy:null, reason:'No active coverage policy found for this payer and service.'};
+      S.faults.push({type:'policy_missing', component:'policy-mcp', handling:'Zero retrieval hits detected → refused to infer criteria → escalated to reviewer; index gap logged for policy ops', recovered:false, escalated:true});
+      setAgent('pa','halted'); setAgent('cds','skipped');
+      await pace(my, 80); await a2a('pa','human','Policy not found. Criteria were not evaluated. Manual review required.', {reason:S.pol.reason, extracted:{diagnosis:icd, conservativeTherapyWeeks:S.x.conservativeWeeks}}, 'input-required', 80);
+      return await humanGate(my);
+    }
+    S.pol = evaluatePolicy(S.x);
+    const pr = await mcpCall(my, 'pa','policy-mcp','policy_search',{query:'lumbar spine MRI 72148 coverage criteria', payer:'AHP', mode:'hybrid', topK:5}, {hits:[{chunk:'AHP-RAD-014 §3.1–3.4', score:.91},{chunk:'AHP-RAD-014 §4 red-flag exceptions', score:.87},{chunk:'AHP-RAD-014 §5 documentation', score:.74},{chunk:'AHP-RAD-022 §2 (cervical, filtered)', score:.41}], policyVersion:'3.2', reranker:'cross-encoder'}, 320, fault === 'mcp_timeout' ? {fail:2, kind:'timeout'} : null);
+    if (fault === 'mcp_timeout') S.faults.push({type:'mcp_timeout', component:'policy-mcp', handling:`2 timeouts → retried with exponential backoff → succeeded on attempt ${pr.attempts}`, recovered:true, escalated:false});
+    await pace(my, 1300); await record('llm','pa','Gemini · match_criteria', {dur:1300, span:'llm.generate match_criteria', tokens:2610, payload:S.pol, detail:`${S.pol.crit.filter(c => c.st==='met').length}/${S.pol.crit.length} met · outcome=${S.pol.outcome}`});
+    await pace(my, 70); await record('guard','pa','Policy guardrail · no autonomous denial', {dur:70, span:'guardrail.no_denial', payload:{allowed:['recommend_approve','pend_info','urgent_review']}, detail:'Allowed outputs: recommend approve, pend for info, urgent review'});
+    setAgent('pa','done');
+    // ---- CDS ----
+    setAgent('cds','working');
+    await pace(my, 95); await a2a('pa','cds','Request evidence review for PA recommendation: ' + S.pol.outcome + '.', {criteria:S.pol.crit.map(c => ({id:c.id, status:c.st})), policy:S.pol.policy.id + ' v' + S.pol.policy.version}, 'working', 95);
+    await pace(my, 380); await mcp('cds','knowledge-mcp','guideline_search',{query:'imaging lumbar radiculopathy ' + (S.pol.outcome === 'urgent' ? 'cauda equina' : 'conservative therapy'), sources:['ACR AC','ACP'], mode:'vector+graph', topK:4}, {hits:[{id:'GL-ACR-LBP', score:.89},{id:'GL-ACP-2017', score:.82},{id: S.pol.outcome==='urgent' ? 'GL-NASS-CES' : 'GL-NASS-RAD', score:.71}], graphHops:2}, 380);
+    S.cds = cdsEvaluate(S.x, S.pol);
+    if (fault === 'grounding_fail') {
+      const draft = [...S.cds.recs, UNSUPPORTED]; const g1 = groundingCheck(draft);
+      await pace(my, 1380); await record('llm','cds','Gemini · synthesize_evidence (draft 1)', {dur:1380, span:'llm.generate synthesize_evidence #1', tokens:3080, payload:draft, detail:`${draft.length} claims drafted`});
+      await pace(my, 90); await record('err','cds',`Grounding check failed · ${g1.unsupported} of ${g1.claims} claims unsupported`, {dur:90, span:'guardrail.grounding ✗', payload:g1.bad, detail:`Blocked: "${g1.bad[0].t}" cites ${g1.bad[0].cite.join(', ')}, which is not in the retrieved source set`});
+      await pace(my, 100); await record('retry','cds','Regenerate with citation-constrained prompt', {dur:40, span:'retry.regenerate', detail:'Constrain citations to retrieved chunk IDs · drop claims without support'});
+      S.faults.push({type:'grounding_fail', component:'cds agent', handling:'Uncited claim blocked by guardrail → regenerated with citation constraint → passed on attempt 2', recovered:true, escalated:false});
+      await pace(my, 1240); await record('llm','cds','Gemini · synthesize_evidence (draft 2)', {dur:1240, span:'llm.generate synthesize_evidence #2', tokens:2940, payload:S.cds, detail:`${S.cds.recs.length} findings with citations`});
+    } else {
+      await pace(my, 1420); await record('llm','cds','Gemini · synthesize_evidence', {dur:1420, span:'llm.generate synthesize_evidence', tokens:3120, payload:S.cds, detail:`${S.cds.recs.length} findings with citations`});
+    }
+    S.cds.grounding = groundingCheck(S.cds.recs);
+    await pace(my, 90); await record('guard','cds','Grounding check passed', {dur:90, span:'guardrail.grounding', payload:{claims:S.cds.grounding.claims, cited:S.cds.grounding.cited}, detail:`${S.cds.grounding.cited}/${S.cds.grounding.claims} claims cited · 0 unsupported · PHI scrubbed from logs`});
+    setAgent('cds','done');
+    await pace(my, 80); await a2a('cds','human','Case ready for clinician review.', {recommendation: S.pol.outcome, findings: S.cds.recs.length}, 'input-required', 80);
+    await humanGate(my);
+  } catch (e) { if (e.message !== 'cancelled') console.error(e); }
+}
+
+async function humanGate(my){
+  setAgent('human','waiting');
+  itab = 'review'; $$('#itabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.i === 'review')); renderInspector();
+  $('#b-step').textContent = stepMode ? 'Step mode: on' : 'Step mode';
+  const dec = await new Promise(r => gateResolve = r);
+  if (my !== runId) return;
+  S.decision = dec;
+  S.clock += 45000;
+  await record('gate','human',`Reviewer decision · ${dec.label}`, {dur:120, span:'hitl.decision', payload:dec, detail:`${dec.reviewer} · ${dec.note || 'no note'}`});
+  setAgent('human','done');
+  await record('sys','human','Audit record sealed', {dur:30, span:'audit.seal', payload:{events:S.audit.length}, detail:'Hash chain finalized'});
+  running = false; $('#b-run').disabled = false; $('#b-run').textContent = 'Run again';
+  itab = 'audit'; $$('#itabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.i === 'audit')); renderInspector();
+}
+$('#f-fault').addEventListener('change', e => { $('#fault-note').textContent = FAULT_NOTES[e.target.value]; });
+/* Live backend (ADK/MCP/Gemini) when served from python -m agentthree */
+const LIVE = !!window.AGENTTHREE_LIVE;
+const LIVE_API = window.AGENTTHREE_API || '';
+let liveCaseId = null;
+
+function mountLiveChrome(){
+  if (!LIVE || document.getElementById('mode-live')) return;
+  const run = document.querySelector('#run .banner');
+  if (!run) return;
+  const modeRow = document.createElement('div');
+  modeRow.className = 'ctrl';
+  modeRow.style.margin = '10px 0 0';
+  modeRow.innerHTML = '<button type="button" class="btn primary" id="mode-live">Live</button><button type="button" class="btn" id="mode-sim">Simulation</button><span class="label" id="live-status" style="margin-left:8px;color:var(--lime)">Live · Gemini backend</span>';
+  const banner = document.createElement('div');
+  banner.className = 'banner';
+  banner.id = 'live-banner';
+  banner.style.margin = '12px 0 0';
+  banner.innerHTML = '<b>Live backend.</b> This page calls ADK/Gemini + MCP at <span class="mono">' + (LIVE_API || location.origin) + '</span>.';
+  run.parentNode.insertBefore(modeRow, run);
+  run.parentNode.insertBefore(banner, run);
+  let useLive = true;
+  const setMode = on => {
+    useLive = on;
+    document.getElementById('mode-live').classList.toggle('primary', on);
+    document.getElementById('mode-sim').classList.toggle('primary', !on);
+    document.getElementById('live-status').textContent = on ? 'Live · Gemini backend' : 'Simulation · in-browser only';
+  };
+  document.getElementById('mode-live').onclick = () => setMode(true);
+  document.getElementById('mode-sim').onclick = () => setMode(false);
+  window.__agentThreeUseLive = () => useLive;
+  fetch(LIVE_API + '/api/health').then(r => r.json()).then(j => {
+    document.getElementById('live-status').textContent =
+      (j.demoMode ? 'fixtures' : ('Gemini · ' + j.model)) + ' · ' + j.project;
+  }).catch(() => {
+    document.getElementById('live-status').textContent = 'backend offline';
+    document.getElementById('live-status').style.color = 'var(--red)';
+  });
+}
+mountLiveChrome();
+
+function hydrateLive(c){
+  if (!c || !S) return;
+  S.ctx = c.contextId || S.ctx; S.traceId = c.traceId || S.traceId;
+  if (c.events) S.events = c.events; if (c.tools) S.tools = c.tools; if (c.a2a) S.a2a = c.a2a;
+  if (c.spans) S.spans = c.spans; if (c.audit) S.audit = c.audit; if (c.agent) S.agent = c.agent;
+  if (c.intake) S.x = c.intake; if (c.pol) S.pol = c.pol; if (c.cds) S.cds = c.cds;
+  if (c.faults) S.faults = c.faults; if (c.tokens != null) S.tokens = c.tokens;
+  S.steps = (S.events && S.events.length) || S.steps;
+  if (S.ctx) $('#ctxid').textContent = 'contextId · ' + S.ctx;
+  renderPipeline(); renderProgress(); renderInspector();
+}
+function onLiveMsg(msg){
+  if (!S) return;
+  if (msg.contextId){ S.ctx = msg.contextId; $('#ctxid').textContent = 'contextId · ' + S.ctx; }
+  if (msg.traceId) S.traceId = msg.traceId;
+  if (msg.agentState){ S.agent = Object.assign(S.agent || {}, msg.agentState); renderPipeline(); }
+  if (msg.type === 'event' && msg.event){
+    S.events.push(msg.event); S.steps = msg.steps || S.events.length;
+    if (msg.tokens != null) S.tokens = msg.tokens;
+    if (msg.audit) S.audit.push(msg.audit);
+    renderProgress(); renderInspector();
+  }
+  if (msg.type === 'tool' && msg.tool){ S.tools.push(msg.tool); renderInspector(); }
+  if (msg.type === 'a2a' && msg.a2a){ S.a2a.push(msg.a2a); renderInspector(); }
+  if (msg.intake) S.x = msg.intake; if (msg.pol) S.pol = msg.pol; if (msg.cds) S.cds = msg.cds;
+  if (msg.faults) S.faults = msg.faults; if (msg.result) hydrateLive(msg.result);
+  renderPipeline(); renderInspector();
+}
+async function runLive(){
+  if (running) return;
+  resetRun(); running = true; const my = runId; S = freshState();
+  S.fault = $('#f-fault').value;
+  $('#b-run').disabled = true; $('#b-run').textContent = 'Running (live)…';
+  $('#ctxid').textContent = 'contextId · starting…';
+  const st = document.getElementById('live-status');
+  if (st) st.textContent = 'submitting…';
+  try {
+    const body = {
+      patient: $('#f-name').value, dob: $('#f-dob').value, member: $('#f-member').value,
+      payer: $('#f-payer').value, cpt: $('#f-cpt').value, icd: $('#f-icd').value,
+      note: $('#f-note').value, fault: $('#f-fault').value
+    };
+    const created = await fetch(LIVE_API + '/api/cases', {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    }).then(r => r.json());
+    if (!created.caseId) throw new Error(JSON.stringify(created));
+    liveCaseId = created.caseId;
+    if (st) st.textContent = 'streaming…';
+    await new Promise((resolve, reject) => {
+      const es = new EventSource(LIVE_API + created.streamUrl);
+      let done = false;
+      const fin = (fn, a) => { if (done) return; done = true; es.close(); fn(a); };
+      es.onmessage = ev => {
+        if (my !== runId) return fin(resolve);
+        const msg = JSON.parse(ev.data);
+        onLiveMsg(msg);
+        if (msg.type === 'done') fin(resolve);
+        if (msg.type === 'error') fin(reject, new Error(msg.message || 'run failed'));
+      };
+      es.onerror = () => fin(resolve);
+    });
+    let finalCase = null;
+    for (let i = 0; i < 60; i++){
+      const r = await fetch(LIVE_API + '/api/cases/' + liveCaseId);
+      if (r.ok){ finalCase = await r.json(); break; }
+      await sleep(500);
+    }
+    if (!finalCase) throw new Error('Case result not ready');
+    hydrateLive(finalCase);
+    setAgent('human','waiting');
+    itab = 'review'; $$('#itabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.i === 'review')); renderInspector();
+    if (st) st.textContent = 'awaiting reviewer';
+    const dec = await new Promise(r => gateResolve = r);
+    if (my !== runId) return;
+    const sealed = await fetch(LIVE_API + '/api/cases/' + liveCaseId + '/decision', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({action: dec.action || 'info', reviewer: dec.reviewer, note: dec.note || ''})
+    }).then(r => r.json());
+    S.decision = sealed.decision || dec; S.audit = sealed.audit || S.audit;
+    setAgent('human','done');
+    running = false; $('#b-run').disabled = false; $('#b-run').textContent = 'Run again';
+    itab = 'audit'; $$('#itabs button').forEach(x => x.setAttribute('aria-selected', x.dataset.i === 'audit')); renderInspector();
+    if (st){ st.textContent = 'complete'; st.style.color = 'var(--lime)'; }
+  } catch (e) {
+    console.error(e);
+    if (st){ st.textContent = 'error: ' + e.message; st.style.color = 'var(--red)'; }
+    alert('Live run failed: ' + e.message);
+    running = false; $('#b-run').disabled = false; $('#b-run').textContent = 'Submit request';
+  }
+}
+
+$('#b-run').addEventListener('click', () => {
+  if (LIVE && (!window.__agentThreeUseLive || window.__agentThreeUseLive())) runLive();
+  else runSim();
+});
+
+/* --- rendering --- */
+function renderPipeline(){
+  const st = S ? S.agent : {intake:'idle',pa:'idle',cds:'idle',human:'idle'};
+  const L = {idle:'idle', working:'working…', done:'complete', waiting:'awaiting reviewer', halted:'halted · escalated', skipped:'skipped'};
+  $('#pipeline').innerHTML = AGENTS.map(a => `<div class="node ${st[a.k]}" style="--c:${a.c}"><div class="bar" style="background:${a.c}"></div><div class="nm">${a.nm}</div><div class="st">● ${L[st[a.k]]}</div></div>`).join('');
+}
+function renderProgress(){
+  const n = S ? S.steps : 0, total = S ? Math.max(S.total, n) : 17;
+  $('#progress').innerHTML = Array.from({length: total}, (_, i) => `<i class="${i < n ? 'on' : ''}"></i>`).join('');
+}
+function hl(obj){
+  return esc(JSON.stringify(obj, null, 2))
+    .replace(/&quot;([^&]*?)&quot;(\s*:)/g, '<span class="k">"$1"</span>$2')
+    .replace(/:\s&quot;(.*?)&quot;/g, ': <span class="s">"$1"</span>')
+    .replace(/:\s(-?\d+\.?\d*)/g, ': <span class="nmb">$1</span>')
+    .replace(/:\s(true|false|null)/g, ': <span class="b">$1</span>');
+}
+const KTAG = {a2a:'t-a2a A2A', mcp:'t-mcp MCP', llm:'t-llm Model', guard:'t-guard Guardrail', gate:'t-gate HITL', sys:'t-sys System', err:'t-err Error', retry:'t-retry Retry'};
+const ACOL = {provider:'var(--soft)', intake:'var(--lime)', pa:'var(--violet)', cds:'var(--amber)', human:'var(--cyan)'};
+function tagHtml(k){ const [c, l] = KTAG[k].split(' '); return `<span class="tag ${c}">${l}</span>`; }
+
+function renderInspector(){
+  $('#n-events').textContent = S ? S.events.length : '';
+  $('#n-tools').textContent = S ? S.tools.length : '';
+  $('#n-a2a').textContent = S ? S.a2a.length : '';
+  const B = $('#ibody');
+  if (!S) { B.innerHTML = `<div class="empty"><b>No run yet.</b><br>Pick a scenario, edit the note if you like, and press <b>Submit request</b>. Turn on Step mode to advance one agent action at a time.</div>`; return; }
+  const f = {events:rEvents, output:rOutput, tools:rTools, a2a:rA2A, trace:rTrace, review:rReview, audit:rAudit}[itab];
+  B.innerHTML = f(); bindInspector();
+}
+function rEvents(){
+  return S.events.slice().reverse().map(e => `<div class="ev">${tagHtml(e.kind)}<div><div class="ttl" style="color:${ACOL[e.agent]||'var(--fg)'}">${esc(e.title)}</div><div class="meta">#${e.seq} · t+${e.simStartMs} ms · ${e.durMs} ms${e.detail ? ' · ' + esc(e.detail) : ''}</div></div></div>`).join('');
+}
+function rOutput(){
+  let o = '';
+  if (S.x) {
+    const x = S.x;
+    o += `<h3 style="font-size:16px;color:var(--lime)">Clinical Intake Agent</h3><div class="ent">
+      <div class="entc"><div class="label">Diagnosis</div><div class="v">${esc(x.icdText)}</div><div class="c">ICD-10-CM ${esc(x.icd)}</div></div>
+      <div class="entc"><div class="label">Requested service</div><div class="v">MRI lumbar spine w/o contrast</div><div class="c">CPT 72148</div></div>
+      <div class="entc"><div class="label">Conservative therapy</div><div class="v">${x.conservativeWeeks ? x.conservativeWeeks + ' weeks' : 'Not documented'}</div><div class="c">PT ${x.ptWeeks ? x.ptWeeks + ' wk' : 'none'}</div></div>
+      <div class="entc"><div class="label">Neurologic finding</div><div class="v">${x.neuroS ? 'Present' : 'None documented'}</div>${x.neuroS ? `<div class="c" style="color:var(--soft)">“${esc(x.neuroS.slice(0,90))}${x.neuroS.length>90?'…':''}”</div>` : ''}</div>
+      ${x.meds.map(m => `<div class="entc"><div class="label">Medication · ${esc(m.cls)}</div><div class="v">${esc(m.name)}${m.dose ? ' ' + esc(m.dose) : ''}</div><div class="c">RxNorm RxCUI ${m.rxcui}</div></div>`).join('')}
+      ${x.redFlags.map(r => `<div class="entc" style="border-color:var(--red)"><div class="label" style="color:var(--red)">Red flag</div><div class="v">${esc(r.flag)}</div></div>`).join('')}
+    </div>${x.gaps.length ? x.gaps.map(g => `<div class="gap">${esc(g)}</div>`).join('') : '<div class="gap" style="border-color:var(--lime);background:rgba(163,230,53,.06)">Documentation complete for policy evaluation.</div>'}`;
+  }
+  if (S.pol && S.agent.pa === 'halted') {
+    o += `<h3 style="font-size:16px;color:var(--violet);margin-top:22px">Prior Authorization Agent</h3>
+      <div class="gap" style="border-color:var(--red);background:rgba(255,93,115,.06)"><b style="color:var(--red)">${S.pol.outcome === 'system' ? 'Halted · system fault' : 'Halted · no policy'}</b><br>${esc(S.pol.reason)} Criteria were not evaluated and the Decision Support Agent was skipped. The case went to a human reviewer.</div>`;
+  }
+  if (S.faults.length) {
+    o += `<h3 style="font-size:16px;color:var(--orange);margin-top:22px">Fault handling</h3>` + S.faults.map(f => `<div class="gap" style="border-color:${f.recovered ? 'var(--lime)' : 'var(--orange)'}"><b>${esc(f.type)}</b> · ${esc(f.component)} · ${f.recovered ? 'recovered' : 'escalated to human'}<br>${esc(f.handling)}</div>`).join('');
+  }
+  if (S.pol && S.agent.pa === 'done') {
+    const p = S.pol, P = {met:['p-met','Met'], not:['p-not','Not met'], waive:['p-waive','Waived']};
+    const O = {meets:['var(--lime)','Recommend approval'], pend:['var(--amber)','Pend · request additional information'], urgent:['var(--red)','Urgent review · criteria met under red-flag exception']};
+    o += `<h3 style="font-size:16px;color:var(--violet);margin-top:22px">Prior Authorization Agent</h3>
+      <div class="meta mono" style="font-size:12px;color:var(--soft)">${p.policy.id} v${p.policy.version} · ${esc(p.policy.title)} · effective ${p.policy.effective}</div>
+      <div style="overflow-x:auto"><table class="crit"><thead><tr><th>#</th><th>Criterion</th><th>Status</th><th>Evidence</th></tr></thead><tbody>
+      ${p.crit.map(c => `<tr><td class="mono">${c.id}<div style="color:var(--dim);font-size:11px">${c.sec}</div></td><td>${esc(c.text)}</td><td><span class="pill ${P[c.st][0]}">${P[c.st][1]}</span></td><td style="color:var(--soft)">${esc(c.ev)}</td></tr>`).join('')}
+      </tbody></table></div>
+      <div style="margin-top:10px;font-weight:700;color:${O[p.outcome][0]}">Recommendation: ${O[p.outcome][1]}</div>`;
+  }
+  if (S.cds && S.agent.cds === 'done') {
+    o += `<h3 style="font-size:16px;color:var(--amber);margin-top:22px">Clinical Decision Support Agent</h3>
+      ${S.cds.recs.map(r => `<div class="rec"><div class="h"><div style="font-weight:600;max-width:60ch">${esc(r.t)}</div><div class="conf">confidence <span class="m"><i style="width:${r.conf*100}%"></i></span>${r.conf.toFixed(2)}</div></div><div class="cite" style="margin-top:6px">${r.cite.map(esc).join(' · ')}</div></div>`).join('')}
+      <div class="gap" style="border-color:var(--red);background:rgba(255,93,115,.06)">Risk: ${esc(S.cds.risks[0])}</div>
+      <div class="meta mono" style="font-size:12px;color:var(--dim);margin-top:8px">Citation IDs refer to simulated guideline chunks.</div>`;
+  }
+  return o || `<div class="empty">Agent outputs appear here as each agent finishes.</div>`;
+}
+function rTools(){
+  if (!S.tools.length) return `<div class="empty">No MCP calls yet.</div>`;
+  return S.tools.map((t, i) => `<details class="call${t.error ? ' err' : ''}"${i === S.tools.length - 1 ? ' open' : ''}><summary><span class="tag ${t.error ? 't-err' : 't-mcp'}">${esc(t.server)}</span><span class="fn">${esc(t.tool)}()${t.attempt > 1 || t.error ? ` · attempt ${t.attempt}` : ''}${t.error ? ' · <span style="color:var(--red)">error</span>' : ''}</span><span class="who" style="color:${ACOL[t.agent]}">${labelOf(t.agent)} · ${t.dur} ms</span></summary>
+    <div class="inner"><div class="label">Request</div><pre class="json">${hl(t.req)}</pre><div class="label" style="margin-top:10px">Response</div><pre class="json">${hl(t.res)}</pre></div></details>`).join('');
+}
+function rA2A(){
+  if (!S.a2a.length) return `<div class="empty">No A2A messages yet.</div>`;
+  return S.a2a.map((a, i) => `<details class="call"${i === S.a2a.length - 1 ? ' open' : ''}><summary><span class="tag t-a2a">message/send</span><span class="fn">${labelOf(a.from)} → ${labelOf(a.to)}</span><span class="who">task: ${a.resp.result.status.state}</span></summary>
+    <div class="inner"><div class="label">Request</div><pre class="json">${hl(a.msg)}</pre><div class="label" style="margin-top:10px">Response</div><pre class="json">${hl(a.resp)}</pre></div></details>`).join('');
+}
+function rTrace(){
+  const spans = S.spans.filter(s => s.name !== 'hitl.decision' && s.name !== 'audit.seal');
+  const end = Math.max(1, ...spans.map(s => s.start + s.dur));
+  const KC = {a2a:'var(--magenta)', mcp:'var(--cyan)', llm:'var(--violet)', guard:'var(--lime)', gate:'var(--amber)', sys:'var(--soft)', err:'var(--red)', retry:'var(--orange)'};
+  return `<div class="tracehdr"><span>trace_id <b>${S.traceId}</b></span><span>spans <b>${S.spans.length}</b></span><span>automated path <b>${(end/1000).toFixed(2)} s</b></span><span>model tokens <b>${S.tokens.toLocaleString()}</b></span></div>
+  <div class="wf">${spans.map(s => `<div class="wf-row"><div class="nm" title="${esc(s.name)}"><span style="color:${ACOL[s.agent]}">●</span> ${esc(s.name)}</div><div class="wf-track"><div class="wf-bar" style="left:${s.start/end*100}%;width:${s.dur/end*100}%;background:${KC[s.kind]}"></div></div><div class="ms">${s.dur} ms</div></div>`).join('')}</div>
+  <div class="meta mono" style="font-size:12px;color:var(--dim);margin-top:10px">Latencies are simulated. In the backend these spans come from OpenTelemetry instrumentation exported to Cloud Trace, with W3C traceparent propagated through A2A metadata.</div>`;
+}
+function rReview(){
+  if (S.decision) return `<div class="decision"><span class="big" style="color:${S.decision.color}">${esc(S.decision.label)}</span><span style="color:var(--soft)">by ${esc(S.decision.reviewer)} · ${esc(S.decision.note || 'no note')}</span></div><div class="empty">Decision recorded. See the Audit record tab.</div>`;
+  if (S.agent.human !== 'waiting') return `<div class="empty">The reviewer gate opens after the Clinical Decision Support Agent finishes. Nothing is decided before a human acts.</div>`;
+  const O = {meets:'Recommend approval', pend:'Pend · request additional information', urgent:'Urgent review · criteria met under red-flag exception', system:'None · automation halted by eligibility outage', nopolicy:'None · no coverage policy found'}[S.pol.outcome];
+  const halted = S.pol.outcome === 'system' || S.pol.outcome === 'nopolicy';
+  return `<div class="gatebox"><h3>Clinician review required</h3>
+    <p style="color:var(--soft);margin:6px 0 12px">Agent recommendation: <b style="color:var(--fg)">${O}</b>. ${S.pol.crit.filter(c => c.st==='met').length} of ${S.pol.crit.length} criteria met. ${S.x.gaps.length ? S.x.gaps.length + ' documentation gap(s).' : 'No documentation gaps.'} Review the Agent outputs tab before deciding.</p>
+    <div class="row2"><div class="field"><label for="rv-name">Reviewer</label><input id="rv-name" value="Dr. Sam Patel, MD (fictional)"></div>
+    <div class="field"><label for="rv-note">Note</label><input id="rv-note" placeholder="Rationale for the record"></div></div>
+    ${halted ? `<div class="gap" style="border-color:var(--red)">${esc(S.pol.reason)} Approval is disabled until coverage criteria can be evaluated.</div>` : ''}
+    <div class="gatebtns"><button class="btn g-ok" data-d="approve"${halted ? ' disabled style="opacity:.4;cursor:not-allowed"' : ''}>Approve</button><button class="btn g-info" data-d="info">Request more information</button><button class="btn g-esc" data-d="escalate">Escalate to medical director</button></div>
+    <div class="meta mono" style="font-size:12px;color:var(--dim);margin-top:12px">A denial can only be issued by a medical director after escalation. Agents have no deny action.</div></div>`;
+}
+function rAudit(){
+  const done = !!S.decision && S.agent.human === 'done';
+  const rec = done ? {
+    caseId:'PA-' + S.ctx.slice(4).toUpperCase(), contextId:S.ctx, traceId:S.traceId, simulation:true,
+    request:{service:'CPT 72148', diagnosis:S.x.icd, member:$('#f-member').value, payer:$('#f-payer').value},
+    agents:{intake:'clinical-intake@1.4.0', priorAuth:'prior-auth@1.2.1', cds:'clinical-decision-support@0.9.3'},
+    model:'gemini (Vertex AI), temperature 0, structured output',
+    policy:S.pol.policy ? S.pol.policy.id + ' v' + S.pol.policy.version : null,
+    injectedFault:S.fault,
+    faults:S.faults,
+    criteria:S.pol.crit.map(c => ({id:c.id, status:c.st, evidence:c.ev})),
+    agentRecommendation:S.pol.outcome,
+    citations:S.cds ? [...new Set(S.cds.recs.flatMap(r => r.cite))] : [],
+    documentationGaps:S.x.gaps,
+    humanDecision:{action:S.decision.action, reviewer:S.decision.reviewer, note:S.decision.note, at:S.decision.at},
+    ledger:{entries:S.audit.length, headHash:S.audit[S.audit.length-1].hash}
+  } : null;
+  return `${done ? `<div class="decision"><span class="big" style="color:${S.decision.color}">${esc(S.decision.label)}</span><span style="color:var(--soft)">${esc(S.decision.reviewer)}</span><button class="btn" id="b-verify" style="margin-left:auto">Verify hash chain</button><button class="btn" id="b-copy">Copy record JSON</button><span id="verify-out"></span></div>
+    <div class="label">Final audit record</div><pre class="json" id="auditjson">${hl(rec)}</pre>` : '<div class="gap">Run in progress. The final record seals after the reviewer decides; ledger entries are already being chained.</div>'}
+    <div class="label" style="margin-top:16px">Ledger · SHA-256 hash chain</div>
+    ${S.audit.map(a => `<div class="ev">${tagHtml(a.kind)}<div><div class="ttl">#${a.seq} ${esc(a.title)}</div><div class="hash">prev ${a.prevHash.slice(0,20)}… → <span style="color:var(--lime)">${a.hash}</span></div></div></div>`).join('')}
+    <div style="margin-top:12px"><button class="btn" id="b-tamper">Tamper with entry #3 (demo)</button></div>`;
+}
+function bindInspector(){
+  $$('.gatebtns button').forEach(b => b.addEventListener('click', () => {
+    if (!gateResolve || b.disabled) return;
+    const D = {approve:{label:'Approved', color:'var(--lime)'}, info:{label:'More information requested', color:'var(--amber)'}, escalate:{label:'Escalated to medical director', color:'var(--violet)'}}[b.dataset.d];
+    const r = gateResolve; gateResolve = null;
+    r({action:b.dataset.d, ...D, reviewer:$('#rv-name').value || 'Reviewer', note:$('#rv-note').value, at:new Date().toISOString()});
+  }));
+  const v = $('#b-verify'); if (v) v.addEventListener('click', verifyChain);
+  const t = $('#b-tamper'); if (t) t.addEventListener('click', async () => {
+    if (S.audit.length < 3) return; S.audit[2].title += ' [edited]'; renderInspector(); if ($('#b-verify')) verifyChain(); else { const r = await chainOk(); const t2 = $('#b-tamper'); t2.insertAdjacentHTML('afterend', ` <span class="${r.ok?'chainok':'chainbad'}">${r.ok?'✓ chain intact':'✗ chain broken at entry #' + r.bad}</span>`); }
+  });
+  const c = $('#b-copy'); if (c) c.addEventListener('click', () => {
+    const txt = $('#auditjson').textContent;
+    const fallback = () => { const r = document.createRange(); r.selectNodeContents($('#auditjson')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); c.textContent = 'Selected · press Ctrl/Cmd+C'; };
+    try { navigator.clipboard.writeText(txt).then(() => c.textContent = 'Copied', fallback); } catch { fallback(); }
+  });
+}
+async function chainOk(){
+  let prev = '0'.repeat(64);
+  for (const a of S.audit) { const {hash, ...rest} = a; if (rest.prevHash !== prev) return {ok:false, bad:a.seq}; const hh = await sha256(stable(rest)); if (hh !== hash) return {ok:false, bad:a.seq}; prev = hash; }
+  return {ok:true};
+}
+async function verifyChain(){
+  const r = await chainOk(); const out = $('#verify-out'); if (!out) return;
+  out.innerHTML = r.ok ? `<span class="chainok">✓ ${S.audit.length} entries verified</span>` : `<span class="chainbad">✗ chain broken at entry #${r.bad || '?'}</span>`;
+}
+
+
+/* =================== EVALUATION =================== */
+const CASES = [
+  {id:'SC-01', title:'Radiculopathy, 6 wk PT, deficit', note:PRESETS.meets.note, icd:'M54.16', fault:'none', exp:{outcome:'meets', meds:['naproxen','cyclobenzaprine'], neuro:true, red:false, cw6:true, crit:'MMMM'}},
+  {id:'SC-02', title:'Acute LBP, 3 wk, no PT', note:PRESETS.gap.note, icd:'M54.50', fault:'none', exp:{outcome:'pend', meds:['naproxen'], neuro:false, red:false, cw6:false, crit:'MNNM'}},
+  {id:'SC-03', title:'Cauda equina red flag', note:PRESETS.redflag.note, icd:'M54.16', fault:'none', exp:{outcome:'urgent', meds:['gabapentin'], neuro:true, red:true, cw6:false, crit:'MWMMM'}},
+  {id:'SC-04', title:'Sciatica, 8 wk PT, ibuprofen', icd:'M54.16', fault:'none', note:'Low back pain with sciatica down the right leg for 10 weeks. Completed 8 weeks of physical therapy. Ibuprofen 600 mg three times daily with partial relief. No prior lumbar imaging.', exp:{outcome:'meets', meds:['ibuprofen'], neuro:false, red:false, cw6:true, crit:'MMMM'}},
+  {id:'SC-05', title:'Only 4 wk PT', icd:'M54.16', fault:'none', note:'Pain radiating down the left leg for 5 weeks. Completed 4 weeks of physical therapy. Naproxen 500 mg twice daily.', exp:{outcome:'pend', meds:['naproxen'], neuro:false, red:false, cw6:false, crit:'MNMM'}},
+  {id:'SC-06', title:'PT duration written in words', icd:'M54.16', fault:'none', note:'Completed six weeks of physical therapy. Pain radiating to the left calf for 10 weeks. Decreased sensation over the dorsal left foot.', exp:{outcome:'meets', meds:[], neuro:true, red:false, cw6:true, crit:'MMMM'}},
+  {id:'SC-07', title:'Negation then positive finding', icd:'M54.16', fault:'none', note:'Low back pain for 8 weeks. Completed 7 weeks of physical therapy. Denies numbness but reports left foot weakness.', exp:{outcome:'meets', meds:[], neuro:true, red:false, cw6:true, crit:'MMMM'}},
+  {id:'SC-08', title:'Recent MRI, unflagged wording', icd:'M54.16', fault:'none', note:'Pain radiating down the left leg for 12 weeks. Completed 8 weeks of physical therapy. Numbness over the lateral foot. Lumbar MRI completed 2 months ago showed an L5-S1 disc protrusion.', exp:{outcome:'pend', meds:[], neuro:true, red:false, cw6:true, crit:'MMMN'}},
+  {id:'SC-09', title:'Recent MRI, explicit wording', icd:'M54.16', fault:'none', note:'Pain radiating down the left leg for 12 weeks. Completed 8 weeks of physical therapy. Numbness over the lateral foot. Previous MRI 5 months ago showed an L5-S1 disc protrusion.', exp:{outcome:'pend', meds:[], neuro:true, red:false, cw6:true, crit:'MMMN'}},
+  {id:'SC-10', title:'Cancer history, indirect wording', icd:'M54.50', fault:'none', note:'History of breast cancer treated in 2019. New low back pain for 2 weeks with night pain.', exp:{outcome:'urgent', meds:[], neuro:false, red:true, cw6:false, crit:'MWNMM'}},
+  {id:'SC-11', title:'Metastatic disease', icd:'M54.50', fault:'none', note:'Known metastatic prostate cancer. New low back pain for 1 week.', exp:{outcome:'urgent', meds:[], neuro:false, red:true, cw6:false, crit:'MWNMM'}},
+  {id:'SC-12', title:'Saddle anesthesia, incontinence', icd:'M54.50', fault:'none', note:'New bladder incontinence and saddle anesthesia since this morning. Severe low back pain.', exp:{outcome:'urgent', meds:[], neuro:true, red:true, cw6:false, crit:'MWMMM'}},
+  {id:'SC-13', title:'Gabapentin + 6 wk PT, SLR+', icd:'M54.16', fault:'none', note:'Radiating pain down the right leg for 12 weeks. Gabapentin 300 mg three times daily and 6 weeks of physical therapy. Positive straight-leg raise on the right.', exp:{outcome:'meets', meds:['gabapentin'], neuro:true, red:false, cw6:true, crit:'MMMM'}},
+  {id:'SC-14', title:'1 week LBP, no leg symptoms', icd:'M54.50', fault:'none', note:'Back pain for 1 week, no leg symptoms. Ibuprofen 400 mg as needed.', exp:{outcome:'pend', meds:['ibuprofen'], neuro:false, red:false, cw6:false, crit:'MNNM'}},
+  {id:'SC-15', title:'Negated deficit, radicular pain', icd:'M54.16', fault:'none', note:'No numbness or weakness. Pain radiates down the left leg for 9 weeks. Completed 6 weeks of physical therapy and naproxen 500 mg twice daily.', exp:{outcome:'meets', meds:['naproxen'], neuro:false, red:false, cw6:true, crit:'MMMM'}},
+  {id:'SC-16', title:'Steroid taper, reflex change', icd:'M54.16', fault:'none', note:'Pain radiating down the right leg for 10 weeks. Completed 7 weeks of physical therapy and a prednisone 20 mg taper. Diminished right patellar reflex.', exp:{outcome:'meets', meds:['prednisone'], neuro:true, red:false, cw6:true, crit:'MMMM'}},
+  {id:'FX-01', title:'SC-01 + policy MCP timeout', note:PRESETS.meets.note, icd:'M54.16', fault:'mcp_timeout', exp:{outcome:'meets', meds:['naproxen','cyclobenzaprine'], neuro:true, red:false, cw6:true, crit:'MMMM'}},
+  {id:'FX-02', title:'SC-01 + eligibility outage', note:PRESETS.meets.note, icd:'M54.16', fault:'mcp_down', exp:{outcome:'system', meds:['naproxen','cyclobenzaprine'], neuro:true, red:false, cw6:true, crit:null}},
+  {id:'FX-03', title:'SC-01 + missing policy', note:PRESETS.meets.note, icd:'M54.16', fault:'policy_missing', exp:{outcome:'nopolicy', meds:['naproxen','cyclobenzaprine'], neuro:true, red:false, cw6:true, crit:null}},
+  {id:'FX-04', title:'SC-01 + grounding failure', note:PRESETS.meets.note, icd:'M54.16', fault:'grounding_fail', exp:{outcome:'meets', meds:['naproxen','cyclobenzaprine'], neuro:true, red:false, cw6:true, crit:'MMMM'}},
+  {id:'FX-05', title:'SC-02 + policy MCP timeout', note:PRESETS.gap.note, icd:'M54.50', fault:'mcp_timeout', exp:{outcome:'pend', meds:['naproxen'], neuro:false, red:false, cw6:false, crit:'MNNM'}},
+  {id:'FX-06', title:'SC-03 + grounding failure', note:PRESETS.redflag.note, icd:'M54.16', fault:'grounding_fail', exp:{outcome:'urgent', meds:['gabapentin'], neuro:true, red:true, cw6:false, crit:'MWMMM'}},
+  {id:'FX-07', title:'SC-03 + eligibility outage', note:PRESETS.redflag.note, icd:'M54.16', fault:'mcp_down', exp:{outcome:'system', meds:['gabapentin'], neuro:true, red:true, cw6:false, crit:null}},
+  {id:'FX-08', title:'SC-02 + missing policy', note:PRESETS.gap.note, icd:'M54.50', fault:'policy_missing', exp:{outcome:'nopolicy', meds:['naproxen'], neuro:false, red:false, cw6:false, crit:null}}
+];
+const OUTS = ['meets','pend','urgent','system','nopolicy'];
+const OUTLBL = {meets:'Approve rec.', pend:'Pend', urgent:'Urgent', system:'Halt · system', nopolicy:'Halt · policy'};
+const STC = {met:'M', not:'N', waive:'W'};
+
+// Same functions the live run uses: extract, evaluatePolicy, cdsEvaluate, groundingCheck. Fault handling mirrors runSim's branches.
+function headless(c){
+  const x = extract(c.note, c.icd);
+  let pol, cds = null, draftBlocked = 0, attempts = 1;
+  if (c.fault === 'mcp_down') { pol = {outcome:'system', crit:[]}; attempts = 3; }
+  else if (c.fault === 'policy_missing') pol = {outcome:'nopolicy', crit:[]};
+  else {
+    pol = evaluatePolicy(x); cds = cdsEvaluate(x, pol);
+    if (c.fault === 'mcp_timeout') attempts = 3;
+    if (c.fault === 'grounding_fail') draftBlocked = groundingCheck([...cds.recs, UNSUPPORTED]).unsupported;
+    cds.grounding = groundingCheck(cds.recs);
+  }
+  return {x, pol, cds, draftBlocked, attempts};
+}
+function scoreCase(c){
+  const r = headless(c), e = c.exp, why = [];
+  const predEnt = new Set([...r.x.meds.map(m => 'med:' + m.name), ...(r.x.neuroS ? ['neuro'] : []), ...(r.x.redFlags.length ? ['redflag'] : []), ...(r.x.conservativeWeeks >= 6 ? ['conservative≥6wk'] : [])]);
+  const expEnt = new Set([...e.meds.map(m => 'med:' + m), ...(e.neuro ? ['neuro'] : []), ...(e.red ? ['redflag'] : []), ...(e.cw6 ? ['conservative≥6wk'] : [])]);
+  let tp = 0, fp = 0, fn = 0;
+  predEnt.forEach(k => expEnt.has(k) ? tp++ : (fp++, why.push(`Extracted ${k} not in label`)));
+  expEnt.forEach(k => { if (!predEnt.has(k)) { fn++; why.push(`Missed ${k}`); } });
+  let critAgree = null, critTot = 0, critHit = 0, perCrit = {};
+  if (e.crit && r.pol.crit.length) {
+    const pred = r.pol.crit.map(x => STC[x.st]).join('');
+    for (let i = 0; i < e.crit.length; i++) {
+      const id = 'C' + (i + 1); perCrit[id] = perCrit[id] || [0,0];
+      critTot++; perCrit[id][1]++;
+      if (pred[i] === e.crit[i]) { critHit++; perCrit[id][0]++; } else why.push(`${id}: labeled ${e.crit[i]}, predicted ${pred[i] || '–'}`);
+    }
+    critAgree = critHit / critTot;
+  }
+  const success = r.pol.outcome === e.outcome;
+  if (!success) why.unshift(`Routed ${OUTLBL[r.pol.outcome]}, expected ${OUTLBL[e.outcome]}`);
+  const cites = r.cds ? {valid:r.cds.grounding.cited, total:r.cds.grounding.claims} : null;
+  const isFault = c.fault !== 'none';
+  const recovered = isFault ? (success && (!r.cds || r.cds.grounding.unsupported === 0)) : null;
+  return {c, r, tp, fp, fn, critHit, critTot, critAgree, perCrit, success, cites, isFault, recovered, why};
+}
+function runEval(){
+  const res = CASES.map(scoreCase);
+  const sum = (f) => res.reduce((a, r) => a + f(r), 0);
+  const tp = sum(r => r.tp), fp = sum(r => r.fp), fn = sum(r => r.fn);
+  const prec = tp / (tp + fp), rec = tp / (tp + fn), f1 = 2 * prec * rec / (prec + rec);
+  const ct = sum(r => r.critTot), ch = sum(r => r.critHit);
+  const cv = sum(r => r.cites ? r.cites.valid : 0), cTot = sum(r => r.cites ? r.cites.total : 0);
+  const fx = res.filter(r => r.isFault), fxOk = fx.filter(r => r.recovered).length;
+  const succ = res.filter(r => r.success).length;
+  const blocked = sum(r => r.r.draftBlocked);
+  const perCrit = {}; res.forEach(r => Object.entries(r.perCrit).forEach(([k, [h, t]]) => { perCrit[k] = perCrit[k] || [0,0]; perCrit[k][0] += h; perCrit[k][1] += t; }));
+  return {res, metrics:{
+    task_success:{v:succ / res.length, n:`${succ}/${res.length} cases routed correctly`},
+    extraction_f1:{v:f1, n:`P ${prec.toFixed(2)} · R ${rec.toFixed(2)} · ${tp + fn} labeled entities`},
+    citation_validity:{v:cTot ? cv / cTot : 0, n:`${cv}/${cTot} final claims resolve · ${blocked} draft claim${blocked === 1 ? '' : 's'} blocked`},
+    criterion_agreement:{v:ch / ct, n:`${ch}/${ct} criterion verdicts match labels`},
+    error_recovery:{v:fx.length ? fxOk / fx.length : 0, n:`${fxOk}/${fx.length} faults recovered or escalated`}
+  }, perCrit};
+}
+const MDEF = [
+  ['task_success','Task success','Final routing matches the labeled outcome, including correct escalation.'],
+  ['extraction_f1','Extraction accuracy','Micro F1 over medications, neuro finding, red flags, therapy duration.'],
+  ['citation_validity','Citation validity','Claims reaching the reviewer cite a retrieved source.'],
+  ['criterion_agreement','Criterion agreement','Per-criterion verdicts versus labeled status.'],
+  ['error_recovery','Error recovery','Injected faults end recovered or escalated, never silent.']
+];
+const BE_EXAMPLE = {source:'github.com/<you>/agentthree · evals/run_2026-10-14.json', cases:120, model:'gemini (Vertex AI)', metrics:{task_success:0.0, extraction_f1:0.0, citation_validity:0.0, criterion_agreement:0.0, error_recovery:0.0}};
+$('#be-schema').innerHTML = hl(BE_EXAMPLE);
+function pct(v){ return (v * 100).toFixed(v === 1 ? 0 : 1) + '%'; }
+function renderEval(){
+  const E = runEval(), be = store.get('a3-backend', null), failOnly = $('#e-fail').checked;
+  $('#e-stamp').textContent = `${E.res.length} cases · ran ${new Date().toLocaleTimeString()}`;
+  $('#kpis').innerHTML = MDEF.map(([k, lbl, d]) => { const m = E.metrics[k]; const bv = be && be.metrics && typeof be.metrics[k] === 'number' ? be.metrics[k] : null;
+    return `<div class="kpi"><div class="label">${lbl}</div><div class="v">${pct(m.v)}</div><div class="meter"><i style="width:${m.v * 100}%"></i></div><div class="n">${esc(m.n)}</div><div class="desc">${d}</div>
+      <div class="be${bv === null ? ' none' : ''}">${bv === null ? 'Backend · not loaded' : `Backend · ${pct(bv)}${be.cases ? ` · n=${be.cases}` : ''}`}</div></div>`; }).join('');
+  // confusion matrix
+  const cm = {}; OUTS.forEach(a => OUTS.forEach(b => cm[a + b] = 0)); E.res.forEach(r => cm[r.c.exp.outcome + r.r.pol.outcome]++);
+  const mx = Math.max(...Object.values(cm));
+  $('#cm').innerHTML = `<table class="cm"><tr><th></th>${OUTS.map(o => `<th>${OUTLBL[o]}</th>`).join('')}</tr>${OUTS.map(a => `<tr><th class="rl">${OUTLBL[a]}</th>${OUTS.map(b => { const n = cm[a + b]; const diag = a === b;
+    const bg = n ? (diag ? `rgba(34,211,238,${0.15 + 0.6 * n / mx})` : `rgba(255,93,115,${0.25 + 0.5 * n / mx})`) : 'rgba(37,45,64,.4)';
+    return `<td style="background:${bg}" title="Expected ${OUTLBL[a]}, predicted ${OUTLBL[b]}: ${n} case(s)">${n || '·'}</td>`; }).join('')}</tr>`).join('')}</table>
+    <div class="mono" style="font-size:11.5px;color:var(--soft);margin-top:8px">Rows: expected · Columns: predicted · cyan = correct, red = error</div>`;
+  const CN = {C1:'Diagnosis', C2:'Conservative tx', C3:'Neuro/radicular', C4:'No recent MRI', C5:'Red-flag exception'};
+  $('#crit-agree').innerHTML = Object.entries(E.perCrit).map(([k, [h, t]]) => `<div class="cbar"><span>${k}</span><div class="tr" title="${CN[k]}: ${h}/${t}"><i style="width:${h / t * 100}%"></i></div><span>${h}/${t}</span></div>`).join('') +
+    `<div class="mono" style="font-size:11.5px;color:var(--soft)">${Object.keys(E.perCrit).map(k => `${k} ${CN[k]}`).join(' · ')}</div>`;
+  const fx = E.res.filter(r => r.isFault);
+  $('#fault-tab').innerHTML = `<table class="res"><thead><tr><th>Case</th><th>Fault</th><th>Handling</th><th>Result</th></tr></thead><tbody>${fx.map(r => {
+    const h = {mcp_timeout:`Retried · success on attempt ${r.r.attempts}`, mcp_down:'Breaker open after 3 attempts → escalated', policy_missing:'Refused to infer criteria → escalated', grounding_fail:`${r.r.draftBlocked} uncited claim blocked → regenerated`}[r.c.fault];
+    return `<tr><td class="mono">${r.c.id}</td><td class="mono" style="font-size:12px">${r.c.fault}</td><td style="color:var(--soft)">${h}</td><td>${r.recovered ? '<span class="ok">✓ handled</span>' : '<span class="no">✗ not handled</span>'}</td></tr>`; }).join('')}</tbody></table>`;
+  const rows = E.res.filter(r => !failOnly || r.why.length);
+  const yn = (b) => b === null ? '<span class="na">n/a</span>' : b ? '<span class="ok">✓</span>' : '<span class="no">✗</span>';
+  $('#restab').innerHTML = `<thead><tr><th>Case</th><th>Scenario</th><th>Fault</th><th>Expected</th><th>Predicted</th><th>Routing</th><th>Extraction</th><th>Criteria</th><th>Citations</th><th>Findings</th></tr></thead><tbody>${rows.map(r => `<tr>
+    <td class="mono">${r.c.id}</td><td>${esc(r.c.title)}</td><td class="mono" style="font-size:12px;color:${r.isFault ? 'var(--orange)' : 'var(--dim)'}">${r.c.fault}</td>
+    <td>${OUTLBL[r.c.exp.outcome]}</td><td style="color:${r.success ? 'var(--fg)' : 'var(--red)'}">${OUTLBL[r.r.pol.outcome]}</td>
+    <td>${yn(r.success)}</td><td class="mono" style="font-size:12px">${r.fp + r.fn ? `<span class="no">${r.tp}/${r.tp + r.fn}${r.fp ? ` +${r.fp}fp` : ''}</span>` : `<span class="ok">${r.tp}/${r.tp}</span>`}</td>
+    <td class="mono" style="font-size:12px">${r.critTot ? (r.critHit === r.critTot ? `<span class="ok">${r.critHit}/${r.critTot}</span>` : `<span class="no">${r.critHit}/${r.critTot}</span>`) : '<span class="na">n/a</span>'}</td>
+    <td class="mono" style="font-size:12px">${r.cites ? `<span class="${r.cites.valid === r.cites.total ? 'ok' : 'no'}">${r.cites.valid}/${r.cites.total}</span>` : '<span class="na">n/a</span>'}</td>
+    <td class="why">${r.why.length ? r.why.map(esc).join('<br>') : '—'}</td></tr>`).join('')}</tbody>`;
+}
+$('#e-run').addEventListener('click', renderEval);
+$('#e-fail').addEventListener('change', renderEval);
+$('#be-json').value = (() => { const b = store.get('a3-backend', null); return b ? JSON.stringify(b, null, 2) : ''; })();
+$('#be-load').addEventListener('click', () => {
+  const msg = $('#be-msg');
+  try {
+    const j = JSON.parse($('#be-json').value);
+    if (!j.metrics || typeof j.metrics !== 'object') throw new Error('Missing "metrics" object.');
+    const bad = Object.entries(j.metrics).filter(([, v]) => typeof v !== 'number' || v < 0 || v > 1).map(([k]) => k);
+    if (bad.length) throw new Error(`Metrics must be numbers from 0 to 1: ${bad.join(', ')}`);
+    store.set('a3-backend', j); msg.style.color = 'var(--lime)'; msg.textContent = 'Loaded' + (j.source ? ` · ${j.source}` : ''); renderEval();
+  } catch (err) { msg.style.color = 'var(--red)'; msg.textContent = err.message.startsWith('Unexpected') || err.message.includes('JSON') ? 'Not valid JSON. Check quotes and commas.' : err.message; }
+});
+$('#be-clear').addEventListener('click', () => { try { localStorage.removeItem('a3-backend'); } catch {} $('#be-json').value = ''; $('#be-msg').textContent = ''; renderEval(); });
+renderEval();
+
+renderPipeline(); renderProgress(); renderInspector();
+})();
+</script>
