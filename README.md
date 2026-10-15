@@ -76,9 +76,16 @@ cp .env.example .env               # set GOOGLE_API_KEY; DEMO_MODE=false for liv
 cd web && npm install && npm run dev
 ```
 
-Open **http://127.0.0.1:5173** — Submit a scenario and watch Intake → Prior Auth → CDS → Human Review.
+Open **http://127.0.0.1:5173** — one UI with:
 
-Classic HTML UI remains at **http://127.0.0.1:8000/classic** (or `/` if React is not built).
+| Tab | What you show |
+|-----|----------------|
+| **Overview** | Architecture SVG (ADK · A2A · MCP · HITL · audit) |
+| **Live run** | Agents lighting up + MCP / A2A inspector |
+| **Engineering** | Capability cards |
+| **Build status** | What’s built vs deferred |
+
+Classic HTML remains at **http://127.0.0.1:8000/classic**.
 
 Optional: `cd web && npm run build` then restart the backend so `/` serves the React bundle.
 

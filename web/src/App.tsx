@@ -1,47 +1,25 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import './App.css'
-import { createCase, fetchHealth, getCase, streamCase, submitDecision } from './api'
-import { AgentPipeline } from './components/AgentPipeline'
-import { CaseFormPanel } from './components/CaseForm'
-import { Inspector } from './components/Inspector'
-import { PRESETS } from './presets'
-import type {
-  A2AMessage,
-  AgentKey,
-  AgentStatus,
-  CaseForm,
-  CdsResult,
-  Health,
-  PolicyResult,
-  TimelineEvent,
-  ToolCall,
-} from './types'
+import { fetchHealth } from './api'
+import { BuildStatusPage } from './pages/BuildStatusPage'
+import { EngineeringPage } from './pages/EngineeringPage'
+import { LiveRunPage } from './pages/LiveRunPage'
+import { OverviewPage } from './pages/OverviewPage'
+import type { Health } from './types'
 
-const IDLE: Record<AgentKey, AgentStatus> = {
-  intake: 'idle',
-  pa: 'idle',
-  cds: 'idle',
-  human: 'idle',
-}
+type View = 'overview' | 'run' | 'eng' | 'build'
+
+const NAV: Array<{ id: View; label: string }> = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'run', label: 'Live run' },
+  { id: 'eng', label: 'Engineering' },
+  { id: 'build', label: 'Build status' },
+]
 
 export default function App() {
-  const [preset, setPreset] = useState('meets')
-  const [form, setForm] = useState<CaseForm>(PRESETS.meets.form)
+  const [view, setView] = useState<View>('overview')
   const [health, setHealth] = useState<Health | null>(null)
   const [healthErr, setHealthErr] = useState(false)
-  const [running, setRunning] = useState(false)
-  const [status, setStatus] = useState('Ready')
-  const [contextId, setContextId] = useState('')
-  const [agentState, setAgentState] = useState(IDLE)
-  const [events, setEvents] = useState<TimelineEvent[]>([])
-  const [tools, setTools] = useState<ToolCall[]>([])
-  const [a2a, setA2a] = useState<A2AMessage[]>([])
-  const [pol, setPol] = useState<PolicyResult | undefined>()
-  const [cds, setCds] = useState<CdsResult | undefined>()
-  const [awaitingHuman, setAwaitingHuman] = useState(false)
-  const [caseId, setCaseId] = useState<string | null>(null)
-  const [decision, setDecision] = useState<{ label: string; reviewer: string; note?: string } | undefined>()
-  const [tab, setTab] = useState<'events' | 'tools' | 'a2a' | 'output' | 'review'>('events')
 
   useEffect(() => {
     fetchHealth()
@@ -51,94 +29,6 @@ export default function App() {
       })
       .catch(() => setHealthErr(true))
   }, [])
-
-  const reset = useCallback(() => {
-    setRunning(false)
-    setStatus('Ready')
-    setContextId('')
-    setAgentState(IDLE)
-    setEvents([])
-    setTools([])
-    setA2a([])
-    setPol(undefined)
-    setCds(undefined)
-    setAwaitingHuman(false)
-    setCaseId(null)
-    setDecision(undefined)
-    setTab('events')
-  }, [])
-
-  const onSubmit = async () => {
-    if (running) return
-    reset()
-    setRunning(true)
-    setStatus('Submitting case…')
-    try {
-      const created = await createCase(form)
-      setCaseId(created.caseId)
-      setStatus(`Streaming ${created.caseId.slice(0, 8)}…`)
-
-      await new Promise<void>((resolve, reject) => {
-        streamCase(
-          created.streamUrl,
-          (msg) => {
-            if (msg.contextId) setContextId(msg.contextId)
-            if (msg.agentState) setAgentState((s) => ({ ...s, ...msg.agentState }))
-            if (msg.type === 'event' && msg.event) setEvents((e) => [...e, msg.event!])
-            if (msg.type === 'tool' && msg.tool) setTools((t) => [...t, msg.tool!])
-            if (msg.type === 'a2a' && msg.a2a) setA2a((a) => [...a, msg.a2a!])
-            if (msg.pol) setPol(msg.pol)
-            if (msg.cds) setCds(msg.cds)
-            if (msg.result) {
-              if (msg.result.events) setEvents(msg.result.events)
-              if (msg.result.tools) setTools(msg.result.tools)
-              if (msg.result.a2a) setA2a(msg.result.a2a)
-              if (msg.result.agent) setAgentState(msg.result.agent)
-              if (msg.result.pol) setPol(msg.result.pol)
-              if (msg.result.cds) setCds(msg.result.cds)
-              if (msg.result.contextId) setContextId(msg.result.contextId)
-            }
-            if (msg.awaitingHuman || msg.type === 'ready_for_review' || msg.type === 'halt') {
-              setAwaitingHuman(true)
-              setTab('review')
-            }
-          },
-          () => resolve(),
-          (err) => reject(err),
-        )
-      })
-
-      const finalCase = await getCase(created.caseId)
-      if (finalCase.events) setEvents(finalCase.events)
-      if (finalCase.tools) setTools(finalCase.tools)
-      if (finalCase.a2a) setA2a(finalCase.a2a)
-      if (finalCase.agent) setAgentState(finalCase.agent)
-      if (finalCase.pol) setPol(finalCase.pol)
-      if (finalCase.cds) setCds(finalCase.cds)
-      if (finalCase.contextId) setContextId(finalCase.contextId)
-      setAwaitingHuman(true)
-      setAgentState((s) => ({ ...s, human: 'waiting' }))
-      setTab('review')
-      setStatus('Awaiting human review')
-      setRunning(false)
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e))
-      setRunning(false)
-    }
-  }
-
-  const onDecide = async (action: string, reviewer: string, note: string) => {
-    if (!caseId) return
-    try {
-      const sealed = await submitDecision(caseId, { action, reviewer, note })
-      setDecision(sealed.decision)
-      setAgentState((s) => ({ ...s, human: 'done' }))
-      setAwaitingHuman(false)
-      setStatus('Complete')
-    } catch (e) {
-      setStatus(e instanceof Error ? e.message : String(e))
-    }
-  }
 
   return (
     <div className="app">
@@ -151,58 +41,33 @@ export default function App() {
           </span>
           AgentThree
         </div>
-        <span className="badge">Live agents · React</span>
+        <span className="badge">ADK · A2A · MCP · Gemini</span>
+        <nav className="tabs" role="tablist" aria-label="Sections">
+          {NAV.map((n) => (
+            <button
+              key={n.id}
+              type="button"
+              role="tab"
+              aria-selected={view === n.id}
+              onClick={() => setView(n.id)}
+            >
+              {n.label}
+            </button>
+          ))}
+        </nav>
         <span className={`health ${healthErr ? 'bad' : health ? 'ok' : ''}`}>
           {healthErr
-            ? 'backend offline — start .venv/bin/python -m agentthree'
+            ? 'backend offline'
             : health
-              ? `${health.demoMode ? 'fixtures' : `Gemini · ${health.model}`} · ${health.project}`
+              ? `${health.demoMode ? 'fixtures' : `Gemini · ${health.model}`}`
               : 'checking…'}
         </span>
       </header>
 
-      <section className="hero">
-        <h1>
-          Watch three agents <em>work a prior auth</em> case.
-        </h1>
-        <p>
-          Clinical Intake → Prior Authorization → Decision Support over A2A, tools via MCP, reasoning with Gemini —
-          then a human seals the decision.
-        </p>
-      </section>
-
-      <div className="console">
-        <CaseFormPanel
-          form={form}
-          preset={preset}
-          running={running}
-          onPreset={(k) => {
-            setPreset(k)
-            setForm(PRESETS[k].form)
-            reset()
-          }}
-          onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
-          onSubmit={onSubmit}
-          onReset={reset}
-        />
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minWidth: 0 }}>
-          <AgentPipeline state={agentState} contextId={contextId} />
-          <Inspector
-            tab={tab}
-            onTab={setTab}
-            events={events}
-            tools={tools}
-            a2a={a2a}
-            pol={pol}
-            cds={cds}
-            awaitingHuman={awaitingHuman}
-            decision={decision}
-            onDecide={onDecide}
-          />
-          <div className="status-line">{status}</div>
-        </div>
-      </div>
+      {view === 'overview' && <OverviewPage onGoLive={() => setView('run')} />}
+      {view === 'run' && <LiveRunPage />}
+      {view === 'eng' && <EngineeringPage />}
+      {view === 'build' && <BuildStatusPage />}
     </div>
   )
 }
