@@ -8,9 +8,9 @@ import threading
 import uvicorn
 from google.adk.a2a.utils.agent_to_a2a import to_a2a
 
-from agentthree.agents.clinical_decision_support.agent import root_agent as cds_agent
-from agentthree.agents.clinical_intake.agent import root_agent as intake_agent
-from agentthree.agents.prior_auth.agent import root_agent as pa_agent
+from agents.clinical_decision_support.agent import root_agent as cds_agent
+from agents.clinical_intake.agent import root_agent as intake_agent
+from agents.prior_auth.agent import root_agent as pa_agent
 from agentthree.config import CDS_A2A_PORT, INTAKE_A2A_PORT, PA_A2A_PORT, ensure_genai_env
 
 logger = logging.getLogger(__name__)

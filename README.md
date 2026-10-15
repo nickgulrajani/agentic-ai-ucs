@@ -1,115 +1,110 @@
-# AgentThree — Prior Authorization (ADK · A2A · MCP · Gemini)
+# AgentThree — Prior Authorization
 
-One complete end-to-end prior authorization scenario for **CPT 72148 (MRI lumbar spine)**: three Google ADK agents coordinate over A2A-shaped handoffs, call clinical tools through MCP, reason with Gemini, and pause for a human reviewer in the Live Run UI.
+One end-to-end prior authorization scenario (**CPT 72148 · MRI lumbar spine**) using **Google ADK**, **A2A**, **MCP**, and **Gemini**, connected to a Live Run UI.
 
-This implements the architecture described in [`agentthree-prior-auth.html`](./agentthree-prior-auth.html).
+**Repo:** [nickgulrajani/agentthree-prior-auth](https://github.com/nickgulrajani/agentthree-prior-auth)
 
-| Layer | What runs locally |
-|--------|-------------------|
-| **Agents** | Google ADK `LlmAgent`s — Clinical Intake, Prior Authorization, Clinical Decision Support |
-| **A2A** | Agent Cards via `to_a2a()` (optional) + JSON-RPC `message/send` envelopes per case |
-| **MCP** | FastMCP server — FHIR, RxNorm, policy search, eligibility, guidelines |
-| **Models** | Gemini via **Google AI Studio free tier** (not Vertex — keeps billing at $0) |
-| **UI** | Same Live Run console, switched to **Live** mode against the API |
-
-**GCP project (yours):** `agentthree-ai-dev-511709` · number `31543876598`
+> Fictional patients, payer, and policy — **not for clinical use**.
 
 ---
 
-## Zero / minimal billing setup
+## Architecture
 
-You do **not** need a Gemini Workspace / Standard license.
-
-1. Create a free API key: [Google AI Studio → API keys](https://aistudio.google.com/apikey)
-2. Prefer attaching the key to a **Free tier** project (do not link a paid billing key unless you want charges)
-3. Copy env and paste the key:
-
-```bash
-cp .env.example .env
-# edit .env:
-#   GOOGLE_API_KEY=...
-#   DEMO_MODE=false
-#   GOOGLE_GENAI_USE_VERTEXAI=FALSE
+```mermaid
+flowchart TB
+  subgraph ui_layer [Interface]
+    UI[Live Run UI]
+  end
+  subgraph orch [Orchestration]
+    API[FastAPI + SSE]
+    PIPE[Case pipeline + audit ledger]
+  end
+  subgraph agents_layer [ADK Agents]
+    A1[Clinical Intake]
+    A2[Prior Authorization]
+    A3[Clinical Decision Support]
+  end
+  subgraph tools [MCP]
+    MCP[clinical MCP server]
+  end
+  UI --> API --> PIPE
+  PIPE --> A1 -->|A2A| A2 -->|A2A| A3 -->|HITL| UI
+  A1 & A2 & A3 --> MCP
+  A1 & A2 & A3 --> Gemini[Gemini AI Studio]
+  MCP --> Data[(data/ FHIR + policy)]
 ```
 
-With `DEMO_MODE=true` (default in the checked-in `.env`), the pipeline still exercises **real MCP** and **A2A envelopes**; Gemini steps use deterministic fixtures so you can demo with **no API key**.
-
----
-
-## Quick start
-
-```bash
-cd agentic-ai-ucs
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# Terminal 1 — MCP + API + UI  (always use the project venv)
-.venv/bin/python -m agentthree
-# or:  source .venv/bin/activate && python -m agentthree
-```
-
-> If you see `No module named 'fastmcp'` or `cannot import name 'streamable_http_client'`, you ran with system/pyenv Python instead of `.venv`. Use `.venv/bin/python -m agentthree`.
-
-Open **http://127.0.0.1:8000**
-
-1. Stay on **Live** mode (or switch to Simulation for the pure in-browser demo)
-2. Pick scenario **Meets criteria**
-3. **Submit request** → watch Intake → Prior Auth → Decision Support
-4. On the **Review** tab, Approve / Request info / Escalate
-5. Inspect **MCP tool calls**, **A2A messages**, and the **SHA-256 audit** tab
-
-### Optional: A2A Agent Card servers
-
-```bash
-# in .env
-START_A2A=true
-```
-
-Then:
-
-```bash
-curl -s http://127.0.0.1:9001/.well-known/agent-card.json | head
-curl -s http://127.0.0.1:9002/.well-known/agent-card.json | head
-curl -s http://127.0.0.1:9003/.well-known/agent-card.json | head
-```
-
-### Health
-
-```bash
-curl -s http://127.0.0.1:8000/api/health | python -m json.tool
-```
+Full write-up: [`docs/architecture.md`](docs/architecture.md)
 
 ---
 
 ## Repository layout
 
 ```
-agentthree/
-  mcp/server.py          # FastMCP tools (FHIR, RxNorm, policy, eligibility, guidelines)
-  agents/                # Three ADK LlmAgents (MCP toolsets)
-  a2a_servers.py         # to_a2a() Agent Card servers
-  pipeline.py            # End-to-end case runner + audit ledger
-  gemini_steps.py        # Structured Gemini calls (AI Studio)
-  api/server.py          # FastAPI + SSE + UI
+agents/                  # Google ADK LlmAgents
+  clinical_intake/
+  prior_auth/
+  clinical_decision_support/
+mcp_servers/             # FastMCP tool servers
+  clinical/              # FHIR · RxNorm · policy · eligibility · guidelines
+agentthree/              # Orchestration backend (pipeline, API, audit, Gemini steps)
+ui/                      # Live Run HTML + bridge assets
 data/                    # Demo FHIR patients + AHP-RAD-014 policy
-ui/live-bridge.js        # Wires the HTML Live Run tab to the API
-agentthree-prior-auth.html
+evaluation/              # Synthetic cases + metric scoring
+tests/                   # Unit / smoke tests
+docs/                    # Architecture and design notes
+scripts/run_demo.sh
 ```
 
 ---
 
-## Scenario covered
+## Quick start (free tier)
 
-**Happy path:** Jordan Rivera · CPT `72148` · ICD-10 `M54.16` · 6+ weeks PT · neurologic findings → recommend approval → human gate.
+No Workspace Gemini license required. Use a [Google AI Studio](https://aistudio.google.com/apikey) free API key.
 
-Fault injection (UI dropdown) still works in Live mode: MCP timeout, eligibility outage, missing policy, grounding failure.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+cp .env.example .env               # set GOOGLE_API_KEY; DEMO_MODE=false for live Gemini
+
+.venv/bin/python -m agentthree
+```
+
+Open **http://127.0.0.1:8000** → **Live** → pick a scenario → **Submit request**.
+
+| Mode | Cost |
+|------|------|
+| Local MCP / API / UI | $0 |
+| Gemini AI Studio Free tier | $0 within rate limits |
+| `DEMO_MODE=true` | $0 (fixtures; MCP + A2A still real) |
+
+Keep `GOOGLE_GENAI_USE_VERTEXAI=FALSE` to stay off Vertex billing.
 
 ---
 
-## Notes
+## Scenario
 
-- Fictional patients, payer, and policy — **not for clinical use**
-- Agents **cannot deny**; adverse paths escalate to a human
-- Keep `GOOGLE_GENAI_USE_VERTEXAI=FALSE` for free-tier AI Studio usage
-- Vertex / Cloud Run / Confidential Computing remain future build items on the guide’s Build status list
+Happy path: Jordan Rivera · CPT `72148` · ICD-10 `M54.16` · 6+ weeks PT · neurologic findings → recommend approval → human gate.
+
+Fault injection: MCP timeout, eligibility outage, missing policy, grounding failure.
+
+---
+
+## Develop next
+
+| Area | Folder | Next increments |
+|------|--------|-----------------|
+| Agents | `agents/` | Stronger structured output schemas; RemoteA2aAgent wiring |
+| MCP | `mcp_servers/` | Split FHIR / policy / eligibility into separate servers |
+| Evaluation | `evaluation/` | Expand golden cases; wire UI Evaluation tab to scored JSON |
+| Tests | `tests/` | Pipeline + MCP contract tests; CI |
+| Deploy | _(future)_ | Cloud Run / GKE — optional, not required for the demo |
+
+```bash
+# unit tests
+.venv/bin/python -m pytest tests/ -q
+
+# evaluation smoke
+.venv/bin/python -m evaluation.run_eval
+```

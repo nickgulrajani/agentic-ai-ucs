@@ -75,7 +75,7 @@ def main() -> None:
     env["PYTHONPATH"] = str(ROOT) + os.pathsep + env.get("PYTHONPATH", "")
 
     mcp_proc = subprocess.Popen(
-        [sys.executable, "-m", "agentthree.mcp.server"],
+        [sys.executable, "-m", "mcp_servers.clinical.server"],
         cwd=str(ROOT),
         env=env,
     )
