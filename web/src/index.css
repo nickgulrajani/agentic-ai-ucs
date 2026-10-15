@@ -1,0 +1,76 @@
+:root {
+  --bg: #08090c;
+  --panel: #0f1117;
+  --panel2: #151a25;
+  --line: #252d40;
+  --line2: #33405c;
+  --fg: #f2f6ff;
+  --soft: #b9cdf0;
+  --dim: #8fa6cf;
+  --cyan: #22d3ee;
+  --magenta: #ff4fd8;
+  --amber: #ffb020;
+  --lime: #a3e635;
+  --violet: #a78bfa;
+  --red: #ff5d73;
+  --orange: #ff8a4c;
+  --display: 'Syne', 'Avenir Next', 'Segoe UI', sans-serif;
+  --body: 'DM Sans', 'Segoe UI', system-ui, sans-serif;
+  --mono: 'DM Mono', ui-monospace, Menlo, monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(34, 211, 238, 0.08), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(167, 139, 250, 0.07), transparent 50%),
+    var(--bg);
+  color: var(--fg);
+  font-family: var(--body);
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+a {
+  color: var(--cyan);
+}
+
+.label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--soft);
+}
+
+.mono {
+  font-family: var(--mono);
+}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import socket
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -33,6 +34,29 @@ MCP_URL = os.getenv("MCP_URL", f"http://127.0.0.1:{MCP_PORT}/mcp")
 DATA_DIR = ROOT / "data"
 
 
+def port_is_free(port: int, host: str = "0.0.0.0") -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        try:
+            sock.bind((host, port))
+            return True
+        except OSError:
+            return False
+
+
+def pick_port(preferred: int, *, host: str = "0.0.0.0", search: int = 40) -> int:
+    """Return preferred if free; otherwise the next free port in [preferred, preferred+search)."""
+    if port_is_free(preferred, host):
+        return preferred
+    for candidate in range(preferred + 1, preferred + search):
+        if port_is_free(candidate, host):
+            return candidate
+    # Last resort: OS-assigned ephemeral port
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind((host, 0))
+        return int(sock.getsockname()[1])
+
+
 def ensure_genai_env() -> None:
     """Point ADK/genai at AI Studio free tier unless Vertex is explicitly enabled."""
     if GOOGLE_GENAI_USE_VERTEXAI:
@@ -43,3 +67,4 @@ def ensure_genai_env() -> None:
         os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
         if GOOGLE_API_KEY:
             os.environ["GOOGLE_API_KEY"] = GOOGLE_API_KEY
+

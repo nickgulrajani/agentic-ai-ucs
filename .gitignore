@@ -15,3 +15,5 @@ build/
 .coverage
 htmlcov/
 evaluation/last_results.json
+web/node_modules/
+web/dist/

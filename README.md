@@ -48,7 +48,8 @@ agents/                  # Google ADK LlmAgents
 mcp_servers/             # FastMCP tool servers
   clinical/              # FHIR · RxNorm · policy · eligibility · guidelines
 agentthree/              # Orchestration backend (pipeline, API, audit, Gemini steps)
-ui/                      # Live Run HTML + bridge assets
+web/                     # React Live Run FE (Vite) — watch agents in play
+ui/                      # Classic HTML Live Run
 data/                    # Demo FHIR patients + AHP-RAD-014 policy
 evaluation/              # Synthetic cases + metric scoring
 tests/                   # Unit / smoke tests
@@ -68,10 +69,18 @@ source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 cp .env.example .env               # set GOOGLE_API_KEY; DEMO_MODE=false for live Gemini
 
+# Terminal 1 — backend (MCP + API)
 .venv/bin/python -m agentthree
+
+# Terminal 2 — React FE (agents lighting up live)
+cd web && npm install && npm run dev
 ```
 
-Open **http://127.0.0.1:8000** → **Live** → pick a scenario → **Submit request**.
+Open **http://127.0.0.1:5173** — Submit a scenario and watch Intake → Prior Auth → CDS → Human Review.
+
+Classic HTML UI remains at **http://127.0.0.1:8000/classic** (or `/` if React is not built).
+
+Optional: `cd web && npm run build` then restart the backend so `/` serves the React bundle.
 
 | Mode | Cost |
 |------|------|

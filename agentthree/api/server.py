@@ -11,6 +11,7 @@ from uuid import uuid4
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 
@@ -191,22 +192,32 @@ async def live_bridge() -> FileResponse:
     return FileResponse(path, media_type="application/javascript")
 
 
+def _classic_html() -> str:
+    html = UI_HTML.read_text(encoding="utf-8")
+    boot = "<script>window.AGENTTHREE_LIVE=true;window.AGENTTHREE_API='';</script>\n"
+    return boot + html
+
+
 @app.get("/")
-async def index() -> HTMLResponse:
+async def index():
+    react_index = ROOT / "web" / "dist" / "index.html"
+    if react_index.exists():
+        return FileResponse(react_index)
     if not UI_HTML.exists():
         return HTMLResponse("<h1>AgentThree</h1><p>UI HTML missing.</p>", status_code=500)
-    html = UI_HTML.read_text(encoding="utf-8")
-    # Flag only — live handler lives inside the page IIFE (agentthree-prior-auth.html).
-    boot = "<script>window.AGENTTHREE_LIVE=true;window.AGENTTHREE_API='';</script>\n"
-    if html.lstrip().startswith("<script>") or html.lstrip().startswith("<title>"):
-        html = boot + html
-    elif "<head>" in html:
-        html = html.replace("<head>", "<head>\n" + boot, 1)
-    else:
-        html = boot + html
-    return HTMLResponse(html)
+    return HTMLResponse(_classic_html())
 
 
+@app.get("/classic")
+async def classic_ui() -> HTMLResponse:
+    if not UI_HTML.exists():
+        raise HTTPException(404, "Classic HTML UI missing")
+    return HTMLResponse(_classic_html())
+
+
+_react_assets = ROOT / "web" / "dist" / "assets"
+if _react_assets.is_dir():
+    app.mount("/assets", StaticFiles(directory=_react_assets), name="react-assets")
 
 
 def main() -> None:
