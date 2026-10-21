@@ -1,8 +1,12 @@
 # AgentThree — Prior Authorization
 
+[![Verify](https://github.com/nickgulrajani/agentic-ai-ucs/actions/workflows/verify.yml/badge.svg)](https://github.com/nickgulrajani/agentic-ai-ucs/actions/workflows/verify.yml)
+
 One end-to-end prior authorization scenario (**CPT 72148 · MRI lumbar spine**) using **Google ADK**, **A2A**, **MCP**, and **Gemini**, connected to a Live Run UI.
 
-**Repo:** [nickgulrajani/agentthree-prior-auth](https://github.com/nickgulrajani/agentthree-prior-auth)
+**Repo:** [nickgulrajani/agentic-ai-ucs](https://github.com/nickgulrajani/agentic-ai-ucs)
+
+CI runs pytest, the evaluation gate, and Live Run UI lint/build on push, pull request, and a nightly schedule.
 
 > Fictional patients, payer, and policy — **not for clinical use**.
 
